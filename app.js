@@ -28,10 +28,14 @@ function toast(msg, ms = 2600) {
 async function load() {
   const meta = await DB.get('meta', 'categories');
   state.cats = meta ? meta.value : DEFAULT_CATS;
-  state.expenses = await DB.all('expenses');
+  state.expenses = (await DB.all('expenses')).filter((e) => !e.deleted);
   fillFilters(); render();
 }
-async function saveCats() { await DB.put('meta', { key: 'categories', value: state.cats }); fillFilters(); render(); }
+async function saveCats() {
+  const old = (await DB.get('meta', 'categories')) || {};
+  await DB.put('meta', { ...old, key: 'categories', value: state.cats, updatedAt: Date.now(), _dirty: true });
+  fillFilters(); render(); Sync.schedule(4000);
+}
 
 function fillFilters() {
   const years = new Set([new Date().getFullYear(), ...state.expenses.map((e) => +e.date.slice(0, 4))]);
@@ -79,7 +83,7 @@ function render() {
     html += `<li class="item" data-id="${e.id}">
       <div class="dot" style="background:${c.color}22">${c.icon}</div>
       <div class="mid"><div class="t">${esc(e.vendor || c.name)}</div>
-        <div class="s">${fmtDate(e.date)} · ${esc(c.name)}${e.hasFile ? ' · 📎' : ''}${e.note ? ' · ' + esc(e.note) : ''}</div></div>
+        <div class="s">${fmtDate(e.date)} · ${esc(c.name)}${e.hasFile ? ' · 📎' : ''}${e.createdBy ? ' · ' + esc(e.createdBy) : ''}${e.note ? ' · ' + esc(e.note) : ''}</div></div>
       <div class="amt">${eur.format(e.amount)}${e.paid ? '' : '<small>offen</small>'}</div></li>`;
   }
   $('#list').innerHTML = html;
@@ -114,13 +118,29 @@ async function openEdit(exp, files = []) {
   $('#btnDelete').hidden = !exp;
   $('#ocrStatus').hidden = true;
   $('#ocrTextBox').hidden = true;
+  $('#iMeta').textContent = exp && (exp.createdBy || exp.updatedBy)
+    ? `Erfasst von ${exp.createdBy || '?'}${exp.updatedBy && exp.updatedBy !== exp.createdBy ? ', zuletzt geändert von ' + exp.updatedBy : ''}` : '';
   if (exp && exp.hasFile) {
     const rec = await DB.get('files', exp.id);
     state.files = rec ? rec.items : [];
+    if (!rec && exp.remoteFiles && exp.remoteFiles.length) loadRemoteFiles(exp);
   }
   renderPreview();
   if (location.hash !== '#edit') history.pushState({ edit: 1 }, '', '#edit');
   showView('edit');
+}
+
+// Belege eines anderen Geräts erst beim Öffnen herunterladen (spart Datenvolumen)
+async function loadRemoteFiles(exp) {
+  $('#preview').innerHTML = '<div class="file">⏳ Beleg wird geladen …</div>';
+  try {
+    const items = await Promise.all(exp.remoteFiles.map((m) => Sync.fetchFile(m)));
+    await DB.put('files', { id: exp.id, items });
+    if (state.editing && state.editing.id === exp.id) { state.files = items; renderPreview(); }
+  } catch (e) {
+    console.error(e);
+    $('#preview').innerHTML = '<div class="file">⚠️ Beleg konnte nicht geladen werden (offline?)</div>';
+  }
 }
 
 function renderPreview() {
@@ -227,15 +247,22 @@ async function save(ev) {
     invoice: $('#iInvoice').value.trim(),
     note: $('#iNote').value.trim(),
     paid: $('#iPaid').checked,
-    hasFile: state.files.length > 0,
+    // Beleg liegt evtl. nur im Repo (noch nicht heruntergeladen) → nicht verlieren
+    hasFile: state.files.length > 0 || !!(old && old.hasFile && old.remoteFiles && old.remoteFiles.length),
+    remoteFiles: old && old.hasFile ? old.remoteFiles : undefined,
+    createdBy: old ? old.createdBy : Sync.user() || undefined,
+    updatedBy: Sync.user() || undefined,
+    updatedAt: Date.now(),
+    _sha: old ? old._sha : undefined,
+    _dirty: true,
   };
   await DB.put('expenses', e);
-  if (e.hasFile) await DB.put('files', { id: e.id, items: state.files });
+  if (state.files.length) await DB.put('files', { id: e.id, items: state.files });
   else if (old && old.hasFile) await DB.del('files', e.id);
   const i = state.expenses.findIndex((x) => x.id === e.id);
   if (i > -1) state.expenses[i] = e; else state.expenses.push(e);
   toast(`Gespeichert: ${eur.format(e.amount)} · ${catById(e.category).name}`);
-  closeEdit();
+  closeEdit(); Sync.schedule();
 }
 
 function closeEdit(fromPop) {
@@ -248,9 +275,15 @@ function closeEdit(fromPop) {
 async function del() {
   if (!state.editing || !confirm('Diesen Eintrag wirklich löschen?')) return;
   const id = state.editing.id;
-  await DB.del('expenses', id); await DB.del('files', id);
+  const old = state.editing;
+  if (Sync.enabled() || old._sha) {
+    // Grabstein, damit andere Geräte die Löschung mitbekommen
+    await DB.put('expenses', { id, deleted: true, updatedAt: Date.now(), updatedBy: Sync.user() || undefined,
+      createdAt: old.createdAt, remoteFiles: old.remoteFiles, _sha: old._sha, _dirty: true });
+  } else await DB.del('expenses', id);
+  await DB.del('files', id);
   state.expenses = state.expenses.filter((e) => e.id !== id);
-  toast('Gelöscht'); closeEdit();
+  toast('Gelöscht'); closeEdit(); Sync.schedule();
 }
 
 // ---------------- Export / Backup ----------------
@@ -260,9 +293,9 @@ function download(name, blob) {
 }
 
 function exportCsv() {
-  const rows = [['Datum', 'Kategorie', 'Firma', 'Rechnungsnr', 'Betrag', 'Bezahlt', 'Notiz']];
+  const rows = [['Datum', 'Kategorie', 'Firma', 'Rechnungsnr', 'Betrag', 'Bezahlt', 'Notiz', 'Erfasst von']];
   filtered().sort((a, b) => a.date.localeCompare(b.date)).forEach((e) => rows.push([
-    fmtDate(e.date), catById(e.category).name, e.vendor, e.invoice, e.amount.toFixed(2).replace('.', ','), e.paid ? 'ja' : 'nein', e.note]));
+    fmtDate(e.date), catById(e.category).name, e.vendor, e.invoice, e.amount.toFixed(2).replace('.', ','), e.paid ? 'ja' : 'nein', e.note, e.createdBy]));
   const csv = rows.map((r) => r.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(';')).join('\r\n');
   const y = $('#fYear').value || 'alle', m = $('#fMonth').value;
   download(`campos-kosten-${y}${m ? '-' + m : ''}.csv`, new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
@@ -272,7 +305,7 @@ const toDataUrl = (blob) => new Promise((r) => { const fr = new FileReader(); fr
 async function backup() {
   toast('Backup wird erstellt …');
   const files = await DB.all('files');
-  const out = { app: 'campos-kosten', version: 1, created: new Date().toISOString(), categories: state.cats, expenses: state.expenses, files: [] };
+  const out = { app: 'campos-kosten', version: 1, created: new Date().toISOString(), categories: state.cats, expenses: state.expenses.map(({ _sha, _dirty, ...e }) => e), files: [] };
   for (const f of files) out.files.push({ id: f.id, items: await Promise.all(f.items.map(async (it) => ({ name: it.name, type: it.type, data: await toDataUrl(it) }))) });
   download(`campos-kosten-backup-${today()}.json`, new Blob([JSON.stringify(out)], { type: 'application/json' }));
 }
@@ -281,13 +314,17 @@ async function restore(file) {
     const data = JSON.parse(await file.text());
     if (data.app !== 'campos-kosten') throw new Error('Kein Campos-Backup');
     if (!confirm(`Backup vom ${data.created.slice(0, 10)} mit ${data.expenses.length} Einträgen einspielen? Vorhandene Einträge mit gleicher ID werden ersetzt, andere bleiben erhalten.`)) return;
-    for (const e of data.expenses) await DB.put('expenses', e);
+    for (const e of data.expenses) {
+      const cur = await DB.get('expenses', e.id);
+      if (cur && (cur.updatedAt || 0) > (e.updatedAt || 0)) continue; // neuere Version behalten
+      await DB.put('expenses', { ...e, _sha: cur && cur._sha, _dirty: true, updatedAt: e.updatedAt || e.createdAt });
+    }
     for (const f of data.files || []) {
       const items = await Promise.all(f.items.map(async (it) => new File([await (await fetch(it.data)).blob()], it.name, { type: it.type })));
       await DB.put('files', { id: f.id, items });
     }
     if (data.categories) { const ids = new Set(state.cats.map((c) => c.id)); state.cats.push(...data.categories.filter((c) => !ids.has(c.id))); await saveCats(); }
-    await load(); toast('Backup eingespielt ✔');
+    await load(); toast('Backup eingespielt ✔'); Sync.schedule();
   } catch (e) { alert('Wiederherstellen fehlgeschlagen: ' + e.message); }
 }
 
@@ -327,6 +364,7 @@ $('#btnMenu').onclick = () => $('#menu').showModal();
 $('#menu').onclick = (e) => {
   const act = e.target.dataset.act; if (!act) return;
   $('#menu').close();
+  if (act === 'sync') openSyncDlg();
   if (act === 'csv') exportCsv();
   if (act === 'backup') backup();
   if (act === 'restore') $('#restoreInput').click();
@@ -371,6 +409,76 @@ async function checkShared() {
   handleFiles(rec.files);
 }
 
+// ---------------- Gemeinsamer Abgleich ----------------
+function setSyncIcon(s, msg) {
+  const b = $('#btnSync');
+  b.hidden = !Sync.enabled();
+  b.classList.toggle('busy', s === 'busy');
+  b.textContent = { busy: '🔄', ok: '☁️', error: '⚠️', offline: '📴' }[s] || '☁️';
+  b.title = s === 'error' ? 'Abgleich-Fehler: ' + msg : s === 'offline' ? 'Offline – wird später abgeglichen'
+    : Sync.config && Sync.config.lastSync ? 'Zuletzt abgeglichen: ' + new Date(Sync.config.lastSync).toLocaleString('de-DE') : 'Abgleich';
+  if (s === 'error') toast('⚠️ Abgleich: ' + msg, 5000);
+  updateSyncInfo(s, msg);
+}
+function updateSyncInfo(s, msg) {
+  const c = Sync.config, i = $('#syncInfo');
+  if (!Sync.enabled()) { i.textContent = 'Nicht verbunden – Daten bleiben nur auf diesem Gerät.'; return; }
+  i.textContent = s === 'busy' ? '🔄 Abgleich läuft …' : s === 'error' ? '⚠️ ' + msg
+    : `✅ Verbunden mit ${c.owner}/${c.repo}` + (c.lastSync ? ` · zuletzt ${new Date(c.lastSync).toLocaleString('de-DE')}` : '');
+}
+async function refreshFromDb() {
+  await load();
+  if (state.editing) { const fresh = state.expenses.find((x) => x.id === state.editing.id); if (fresh) state.editing = fresh; }
+}
+Sync.onStatus(setSyncIcon);
+Sync.onChange = refreshFromDb;
+
+function openSyncDlg() {
+  const c = Sync.config || {};
+  $('#sName').value = c.name || ''; $('#sOwner').value = c.owner || '';
+  $('#sRepo').value = c.repo || 'campos-daten'; $('#sToken').value = c.token || '';
+  $('#syncOff').hidden = !Sync.enabled();
+  $('#syncSave').textContent = Sync.enabled() ? 'Speichern & abgleichen' : 'Verbinden';
+  updateSyncInfo();
+  $('#syncDlg').showModal();
+}
+$('#syncForm').onsubmit = async (ev) => {
+  ev.preventDefault();
+  const c = { ...(Sync.config || {}), name: $('#sName').value.trim(), owner: $('#sOwner').value.trim(),
+    repo: $('#sRepo').value.trim(), token: $('#sToken').value.trim() };
+  const changedRepo = !Sync.config || Sync.config.owner !== c.owner || Sync.config.repo !== c.repo;
+  if (changedRepo) delete c.branch;
+  $('#syncInfo').textContent = '⏳ Verbindung wird geprüft …';
+  try {
+    const r = await Sync.test(c);
+    if (!r.private && !confirm('Achtung: Dieses Repository ist ÖFFENTLICH – alle Kosten und Belege wären für jeden sichtbar. Trotzdem verwenden?')) {
+      $('#syncInfo').textContent = 'Bitte ein privates Repository verwenden.'; return;
+    }
+    if (changedRepo) {
+      // Neues Ziel: alle lokalen Einträge als "noch nicht hochgeladen" markieren
+      for (const e of await DB.all('expenses')) { delete e._sha; e.remoteFiles = undefined; await DB.put('expenses', e); }
+      const cm = await DB.get('meta', 'categories'); if (cm) { delete cm._sha; await DB.put('meta', cm); }
+    }
+    await Sync.saveConfig(c);
+    $('#syncOff').hidden = false;
+    const changed = await Sync.sync();
+    if (changed) await refreshFromDb();
+    if (Sync.config.lastSync) { toast('✅ Abgleich eingerichtet'); $('#syncDlg').close(); }
+  } catch (e) {
+    $('#syncInfo').textContent = '⚠️ ' + (e.status === 401 ? 'Token ungültig' : e.status === 404 ? 'Repository nicht gefunden oder Token hat keinen Zugriff' : e.message);
+  }
+};
+$('#syncOff').onclick = async () => {
+  if (!confirm('Abgleich auf diesem Gerät trennen? Die Daten bleiben auf dem Gerät und im Repository erhalten.')) return;
+  await Sync.saveConfig(null); setSyncIcon(); $('#syncDlg').close(); toast('Abgleich getrennt');
+};
+$('#btnSync').onclick = async () => { if (await Sync.sync()) await refreshFromDb(); };
+
+async function autoSync() { if (Sync.enabled() && document.visibilityState === 'visible' && (await Sync.sync())) await refreshFromDb(); }
+document.addEventListener('visibilitychange', autoSync);
+window.addEventListener('online', autoSync);
+setInterval(autoSync, 2 * 60 * 1000);
+
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(console.error);
 if (location.hash === '#edit') history.replaceState(null, '', location.pathname);
-load().then(checkShared);
+load().then(checkShared).then(Sync.loadConfig).then(() => { setSyncIcon(); autoSync(); });

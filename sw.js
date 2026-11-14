@@ -1,7 +1,7 @@
 // Service Worker: Offline-Nutzung + Empfang geteilter Dateien (Android „Teilen“)
 importScripts('db.js');
-const CACHE = 'campos-v1';
-const ASSETS = ['./', 'index.html', 'styles.css', 'app.js', 'db.js', 'parse.js', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png'];
+const CACHE = 'campos-v2';
+const ASSETS = ['./', 'index.html', 'styles.css', 'app.js', 'db.js', 'parse.js', 'sync.js', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));

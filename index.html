@@ -15,7 +15,10 @@
 <body>
 <header class="top">
   <h1>Campos Kosten</h1>
-  <button id="btnMenu" class="icon-btn" aria-label="Menü">⋯</button>
+  <div class="top-actions">
+    <button id="btnSync" class="icon-btn sync-btn" aria-label="Abgleich" hidden>☁️</button>
+    <button id="btnMenu" class="icon-btn" aria-label="Menü">⋯</button>
+  </div>
 </header>
 
 <main>
@@ -67,6 +70,7 @@
         <textarea id="iNote" name="note" rows="2" placeholder="optional"></textarea>
       </label>
       <label class="check"><input id="iPaid" type="checkbox" checked> bezahlt</label>
+      <p id="iMeta" class="hint"></p>
       <div class="form-actions">
         <button type="button" id="btnCancel" class="secondary">Abbrechen</button>
         <button type="button" id="btnDelete" class="danger" hidden>Löschen</button>
@@ -91,6 +95,7 @@
 <!-- Menü -->
 <dialog id="menu">
   <h2>Menü</h2>
+  <button data-act="sync">🔄 Gemeinsamer Abgleich</button>
   <button data-act="csv">📊 Export als CSV (Excel)</button>
   <button data-act="backup">💾 Backup speichern (inkl. Belege)</button>
   <button data-act="restore">♻️ Backup wiederherstellen</button>
@@ -119,6 +124,25 @@
   <div class="form-actions"><button class="secondary" data-close>Fertig</button></div>
 </dialog>
 
+<dialog id="syncDlg">
+  <h2>Gemeinsamer Abgleich</h2>
+  <p class="hint">Alle Geräte, die mit demselben <b>privaten</b> GitHub-Repository verbunden sind, sehen dieselben Kosten und Belege.
+    Anleitung siehe README („Gemeinsamer Abgleich“).</p>
+  <form id="syncForm" autocomplete="off">
+    <label>Dein Name (wird bei Einträgen gespeichert)<input id="sName" placeholder="z. B. Christian" required></label>
+    <label>GitHub-Konto (Besitzer des Repos)<input id="sOwner" placeholder="z. B. rt6k6rcwb7-stack" required autocapitalize="off"></label>
+    <label>Daten-Repository<input id="sRepo" value="campos-daten" required autocapitalize="off"></label>
+    <label>Zugriffstoken (Fine-grained, nur dieses Repo, Contents: Read and write)
+      <input id="sToken" type="password" placeholder="github_pat_…" required autocapitalize="off" spellcheck="false"></label>
+    <p id="syncInfo" class="hint"></p>
+    <div class="form-actions">
+      <button type="button" id="syncOff" class="danger" hidden>Trennen</button>
+      <button type="button" class="secondary" data-close>Schließen</button>
+      <button type="submit" class="primary" id="syncSave">Verbinden</button>
+    </div>
+  </form>
+</dialog>
+
 <dialog id="viewer">
   <div id="viewerBody"></div>
   <div class="form-actions"><button class="secondary" data-close>Schließen</button></div>
@@ -128,6 +152,7 @@
 
 <script src="db.js"></script>
 <script src="parse.js"></script>
+<script src="sync.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

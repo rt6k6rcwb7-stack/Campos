@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f766e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Campos Kosten">
+<title>Campos Kosten</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="top">
+  <h1>Campos Kosten</h1>
+  <button id="btnMenu" class="icon-btn" aria-label="Menü">⋯</button>
+</header>
+
+<main>
+  <!-- Übersicht -->
+  <section id="view-list" class="view active">
+    <div class="summary">
+      <div class="filters">
+        <select id="fYear" aria-label="Jahr"></select>
+        <select id="fMonth" aria-label="Monat">
+          <option value="">Ganzes Jahr</option>
+          <option value="01">Januar</option><option value="02">Februar</option><option value="03">März</option>
+          <option value="04">April</option><option value="05">Mai</option><option value="06">Juni</option>
+          <option value="07">Juli</option><option value="08">August</option><option value="09">September</option>
+          <option value="10">Oktober</option><option value="11">November</option><option value="12">Dezember</option>
+        </select>
+      </div>
+      <div class="total"><span>Gesamt</span><strong id="sumTotal">0,00 €</strong></div>
+      <div id="catBars" class="cat-bars"></div>
+    </div>
+    <div class="list-head">
+      <input id="fSearch" type="search" placeholder="Suchen (Firma, Notiz …)">
+      <select id="fCat" aria-label="Kategorie"><option value="">Alle Kategorien</option></select>
+    </div>
+    <ul id="list" class="list"></ul>
+    <p id="empty" class="empty">Noch keine Kosten erfasst.<br>Tippe auf <b>📷</b> oder <b>＋</b> um loszulegen.</p>
+  </section>
+
+  <!-- Erfassen / Bearbeiten -->
+  <section id="view-edit" class="view">
+    <form id="form" autocomplete="off">
+      <div id="preview" class="preview"></div>
+      <div id="ocrStatus" class="ocr-status" hidden></div>
+      <label>Betrag (€)
+        <input id="iAmount" name="amount" inputmode="decimal" placeholder="0,00" required>
+      </label>
+      <label>Kategorie</label>
+      <div id="catPicker" class="cat-picker"></div>
+      <label>Datum
+        <input id="iDate" name="date" type="date" required>
+      </label>
+      <label>Firma / Lieferant
+        <input id="iVendor" name="vendor" list="vendors" placeholder="z. B. Endesa">
+        <datalist id="vendors"></datalist>
+      </label>
+      <label>Rechnungsnr.
+        <input id="iInvoice" name="invoice" placeholder="optional">
+      </label>
+      <label>Notiz
+        <textarea id="iNote" name="note" rows="2" placeholder="optional"></textarea>
+      </label>
+      <label class="check"><input id="iPaid" type="checkbox" checked> bezahlt</label>
+      <div class="form-actions">
+        <button type="button" id="btnCancel" class="secondary">Abbrechen</button>
+        <button type="button" id="btnDelete" class="danger" hidden>Löschen</button>
+        <button type="submit" class="primary">Speichern</button>
+      </div>
+      <details id="ocrTextBox" hidden><summary>Erkannter Text</summary><pre id="ocrText"></pre></details>
+    </form>
+  </section>
+</main>
+
+<!-- Schnell-Aktionen -->
+<nav class="fab-bar" id="fabBar">
+  <button id="btnImport" class="fab small" title="Rechnung / E-Mail importieren">📎</button>
+  <button id="btnCamera" class="fab" title="Foto aufnehmen">📷</button>
+  <button id="btnManual" class="fab small" title="Manuell erfassen">＋</button>
+</nav>
+
+<input id="camInput" type="file" accept="image/*" capture="environment" hidden>
+<input id="fileInput" type="file" accept="image/*,application/pdf,.eml,message/rfc822,text/plain" multiple hidden>
+<input id="restoreInput" type="file" accept="application/json,.json" hidden>
+
+<!-- Menü -->
+<dialog id="menu">
+  <h2>Menü</h2>
+  <button data-act="csv">📊 Export als CSV (Excel)</button>
+  <button data-act="backup">💾 Backup speichern (inkl. Belege)</button>
+  <button data-act="restore">♻️ Backup wiederherstellen</button>
+  <button data-act="paste">📧 E-Mail-Text einfügen</button>
+  <button data-act="cats">🏷️ Kategorien verwalten</button>
+  <button data-act="close" class="secondary">Schließen</button>
+</dialog>
+
+<dialog id="pasteDlg">
+  <h2>E-Mail-Text einfügen</h2>
+  <p class="hint">Text der Rechnungs-E-Mail hier einfügen – Betrag, Datum und Kategorie werden erkannt.</p>
+  <textarea id="pasteText" rows="10"></textarea>
+  <div class="form-actions">
+    <button class="secondary" data-close>Abbrechen</button>
+    <button class="primary" id="pasteGo">Übernehmen</button>
+  </div>
+</dialog>
+
+<dialog id="catsDlg">
+  <h2>Kategorien</h2>
+  <ul id="catEditList" class="cat-edit"></ul>
+  <div class="row">
+    <input id="newCatName" placeholder="Neue Kategorie">
+    <button id="addCat" class="primary">Hinzufügen</button>
+  </div>
+  <div class="form-actions"><button class="secondary" data-close>Fertig</button></div>
+</dialog>
+
+<dialog id="viewer">
+  <div id="viewerBody"></div>
+  <div class="form-actions"><button class="secondary" data-close>Schließen</button></div>
+</dialog>
+
+<div id="toast" class="toast" role="status"></div>
+
+<script src="db.js"></script>
+<script src="parse.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

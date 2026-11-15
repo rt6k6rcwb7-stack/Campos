@@ -93,15 +93,29 @@ const Mail = (() => {
     return { folderId, doneId };
   }
 
+  // Hauptordner + alle Unterordner (außer „Erledigt“); Unterordner werden jedes Mal neu gelesen,
+  // damit in Outlook neu angelegte Ordner sofort mitgelesen werden.
+  async function sources() {
+    const { folderId, doneId } = await folders();
+    const root = await graph(`/me/mailFolders/${folderId}?$select=id,displayName,totalItemCount`);
+    const kids = await graph(`/me/mailFolders/${folderId}/childFolders?$top=100&$select=id,displayName,totalItemCount`);
+    return [{ id: folderId, name: '', count: root.totalItemCount },
+      ...kids.value.filter((f) => f.id !== doneId).map((f) => ({ id: f.id, name: f.displayName, count: f.totalItemCount }))];
+  }
+
   // ---------- Mails ----------
   async function list() {
-    const { folderId } = await folders();
-    const r = await graph(`/me/mailFolders/${folderId}/messages?$top=50&$orderby=receivedDateTime desc` +
-      '&$select=id,subject,from,receivedDateTime,hasAttachments,bodyPreview');
-    return r.value.map((m) => ({ id: m.id, subject: m.subject || '(kein Betreff)', fromName: m.from?.emailAddress?.name || '',
-      from: m.from?.emailAddress?.address || '', date: (m.receivedDateTime || '').slice(0, 10), hasAttachments: m.hasAttachments, preview: m.bodyPreview || '' }));
+    const out = [];
+    for (const src of await sources()) {
+      if (!src.count) continue;
+      const r = await graph(`/me/mailFolders/${src.id}/messages?$top=50&$orderby=receivedDateTime desc` +
+        '&$select=id,subject,from,receivedDateTime,hasAttachments,bodyPreview');
+      out.push(...r.value.map((m) => ({ id: m.id, folder: src.name, subject: m.subject || '(kein Betreff)', fromName: m.from?.emailAddress?.name || '',
+        from: m.from?.emailAddress?.address || '', date: (m.receivedDateTime || '').slice(0, 10), hasAttachments: m.hasAttachments, preview: m.bodyPreview || '' })));
+    }
+    return out.sort((a, b) => b.date.localeCompare(a.date));
   }
-  async function count() { const { folderId } = await folders(); return (await graph(`/me/mailFolders/${folderId}?$select=totalItemCount`)).totalItemCount; }
+  async function count() { return (await sources()).reduce((s, f) => s + (f.count || 0), 0); }
 
   const b64ToBytes = (b64) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
   async function load(id) {

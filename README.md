@@ -10,7 +10,7 @@ Web-App (PWA) zum schnellen Erfassen aller Kosten für das Haus in Campos – l�
 - **Kategorien**: Strom, Wasser, Installation, Reinigung, Hausbetreuung, Versicherung, Steuern & Gebühren, Internet/Telefon, Sonstiges – frei änderbar.
 - **Übersicht** nach Jahr/Monat mit Summen und Anteil je Kategorie, Suche, Status „offen/bezahlt“.
 - **Export als CSV** (öffnet direkt in Excel/Numbers) und **Backup/Wiederherstellen** inkl. Belegen.
-- **📥 Import aus Outlook / Microsoft 365** – Rechnungs-Mails aus einem Outlook-Ordner („Campos“) mit einem Tipp erfassen; erledigte Mails wandern nach „Campos/Erledigt“.
+- **📥 Import aus Outlook / Microsoft 365** – Rechnungs-Mails aus dem Outlook-Ordner „Campos“ und seinen Unterordnern (z. B. „Campos/Strom“ → Kategorie Strom) mit einem Tipp erfassen; erledigte Mails wandern nach „Campos/Erledigt“.
 - **🔄 Gemeinsamer Abgleich** zwischen mehreren Handys über ein privates GitHub-Repository (inkl. Belege, „erfasst von“).
 - Funktioniert **offline**; Änderungen werden abgeglichen, sobald wieder Internet da ist.
 
@@ -27,9 +27,24 @@ Lokal testen: `python3 -m http.server` und `http://localhost:8000` öffnen.
 
 ## Import aus Outlook / Microsoft 365 einrichten (einmalig, ca. 10 Minuten)
 
-**1. Ordner in Outlook anlegen:** einen Ordner **Campos** (oberste Ebene oder unter „Posteingang“). Rechnungen dorthin verschieben – oder
-per Regel automatisch (Outlook → Einstellungen → Regeln, z. B. „Absender enthält endesa / aqualia / …“ → „In Ordner verschieben: Campos“).
-Den Unterordner **Erledigt** legt die App selbst an.
+**1. Ordner in Outlook anlegen:** einen Ordner **Campos** (oberste Ebene oder unter „Posteingang“), darin am besten je Kategorie einen Unterordner:
+
+```
+Campos
+├── Strom
+├── Wasser
+├── Installation
+├── Reinigung
+├── Hausbetreuung
+└── Erledigt        ← legt die App selbst an
+```
+
+Die App liest den Hauptordner **und alle Unterordner**. Heißt ein Unterordner wie eine Kategorie (oder enthält ein Wort davon,
+z. B. „Steuern“, „Telefon“), ist die Kategorie beim Erfassen schon gesetzt – unabhängig von der Texterkennung.
+Andere Unterordner (z. B. „Belege 2025“) werden ebenfalls gelesen, nur ohne Kategorie-Vorgabe. Neue Unterordner werden sofort erkannt.
+
+Mit Outlook-Regeln sortiert sich alles von selbst (Outlook → Einstellungen → E-Mail → Regeln), z. B.:
+„Absender enthält *endesa*“ → „In Ordner verschieben: Campos/Strom“, „Absender enthält *aqualia*“ → „Campos/Wasser“.
 
 **2. App bei Microsoft registrieren** (kostenlos, mit dem Microsoft-365-Admin-Konto):
 1. https://entra.microsoft.com → **Identität → Anwendungen → App-Registrierungen** → **Neue Registrierung**

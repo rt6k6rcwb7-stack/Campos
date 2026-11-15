@@ -506,9 +506,9 @@ async function openMailDlg() {
     $('#mailInfo').textContent = mails.length
       ? `${mails.length} Mail(s) im Ordner „${Mail.config.folder}“ (${Mail.config.account})`
       : `Keine neuen Mails im Ordner „${Mail.config.folder}“. Rechnungen in Outlook dorthin verschieben (oder per Regel automatisch).`;
-    $('#mailList').innerHTML = mails.map((m) => `<li data-id="${esc(m.id)}">
+    $('#mailList').innerHTML = mails.map((m) => `<li data-id="${esc(m.id)}" data-folder="${esc(m.folder)}">
       <div class="t">${esc(m.subject)}</div>
-      <div class="s">${esc(m.fromName || m.from)} · ${m.date ? fmtDate(m.date) : ''}${m.hasAttachments ? ' · 📎' : ''}</div>
+      <div class="s">${m.folder ? `<span class="tag">${catForFolder(m.folder) ? catForFolder(m.folder).icon + ' ' : '📁 '}${esc(m.folder)}</span> ` : ''}${esc(m.fromName || m.from)} · ${m.date ? fmtDate(m.date) : ''}${m.hasAttachments ? ' · 📎' : ''}</div>
       <div class="acts"><button class="primary" data-mail="take">Erfassen</button><button class="secondary" data-mail="skip">Ignorieren</button></div></li>`).join('');
   } catch (e) { mailError(e); }
 }
@@ -524,7 +524,17 @@ async function refreshMailBadge() {
   if (!Mail.signedIn() || !navigator.onLine) return;
   try { setMailBadge(await Mail.count()); } catch (e) { if (e.code === 'login_required') { setMailBadge(0); } console.warn(e); }
 }
-async function importMail(id) {
+// Outlook-Unterordner → Kategorie (z. B. „Strom“, „Steuern“ → „Steuern & Gebühren“, „Internet“ → „Internet / Telefon“)
+const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9äöüß]+/g, ' ').trim();
+function catForFolder(folder) {
+  const f = norm(folder); if (!f) return null;
+  return state.cats.find((c) => norm(c.name) === f || c.id === f)
+    || state.cats.find((c) => norm(c.name).split(' ').includes(f.split(' ')[0]))
+    || state.cats.find((c) => norm(c.name).startsWith(f) || f.startsWith(norm(c.name)))
+    || null;
+}
+
+async function importMail(id, folder) {
   toast('📥 Mail wird geladen …');
   let m;
   try { m = await Mail.load(id); } catch (e) { return mailError(e); }
@@ -533,6 +543,8 @@ async function importMail(id) {
   const first = m.attachments[0] && m.attachments[0].type.startsWith('image/') ? await Parse.shrinkImage(m.attachments[0]) : m.attachments[0];
   await openEdit(null, first ? [first] : []);
   state.pendingMail = id;
+  const cat = catForFolder(folder);
+  if (cat) { state.selCat = cat.id; state.touched.add('cat'); renderCatPicker(); }
   if (m.date) $('#iDate').value = m.date;
   $('#iNote').value = m.subject.slice(0, 120);
   analyze(first, `${m.subject}\n${m.fromName} ${m.from}\n${m.text}`, m.fromName);
@@ -540,7 +552,7 @@ async function importMail(id) {
 $('#mailList').onclick = async (e) => {
   const b = e.target.closest('[data-mail]'); if (!b) return;
   const id = b.closest('li').dataset.id;
-  if (b.dataset.mail === 'take') return importMail(id);
+  if (b.dataset.mail === 'take') return importMail(id, b.closest('li').dataset.folder);
   b.disabled = true;
   try { await Mail.markDone(id); b.closest('li').remove(); refreshMailBadge(); toast('Nach „Erledigt“ verschoben'); }
   catch (err) { b.disabled = false; mailError(err); }

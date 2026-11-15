@@ -16,6 +16,7 @@
 <header class="top">
   <h1>Campos Kosten</h1>
   <div class="top-actions">
+    <button id="btnMail" class="icon-btn mail-btn" aria-label="Outlook-Posteingang" hidden>📥<span id="mailBadge" class="badge" hidden></span></button>
     <button id="btnSync" class="icon-btn sync-btn" aria-label="Abgleich" hidden>☁️</button>
     <button id="btnMenu" class="icon-btn" aria-label="Menü">⋯</button>
   </div>
@@ -95,6 +96,7 @@
 <!-- Menü -->
 <dialog id="menu">
   <h2>Menü</h2>
+  <button data-act="mail">📥 Aus Outlook importieren</button>
   <button data-act="sync">🔄 Gemeinsamer Abgleich</button>
   <button data-act="csv">📊 Export als CSV (Excel)</button>
   <button data-act="backup">💾 Backup speichern (inkl. Belege)</button>
@@ -143,6 +145,32 @@
   </form>
 </dialog>
 
+<dialog id="mailDlg">
+  <h2>Outlook-Posteingang</h2>
+  <div id="mailInbox">
+    <p id="mailInfo" class="hint"></p>
+    <ul id="mailList" class="mail-list"></ul>
+    <div class="form-actions">
+      <button type="button" id="mailSettingsBtn" class="secondary">⚙️ Einstellungen</button>
+      <button type="button" id="mailRefresh" class="secondary">↻ Aktualisieren</button>
+      <button type="button" class="primary" data-close>Schließen</button>
+    </div>
+  </div>
+  <form id="mailForm" autocomplete="off" hidden>
+    <p class="hint">Einmalig eine App bei Microsoft registrieren (Anleitung im README, „Import aus Outlook“) und die IDs hier eintragen.</p>
+    <label>Anwendungs-ID (Client ID)<input id="mClient" required placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocapitalize="off" spellcheck="false"></label>
+    <label>Verzeichnis-ID (Tenant ID)<input id="mTenant" placeholder="leer = organizations" autocapitalize="off" spellcheck="false"></label>
+    <label>Outlook-Ordner<input id="mFolder" value="Campos" required></label>
+    <label>Umleitungs-URI (bei Microsoft als „Single-Page-Anwendung“ eintragen)<input id="mRedirect" readonly></label>
+    <p id="mailFormInfo" class="hint"></p>
+    <div class="form-actions">
+      <button type="button" id="mailOff" class="danger" hidden>Trennen</button>
+      <button type="button" class="secondary" data-close>Schließen</button>
+      <button type="submit" class="primary">Bei Microsoft anmelden</button>
+    </div>
+  </form>
+</dialog>
+
 <dialog id="viewer">
   <div id="viewerBody"></div>
   <div class="form-actions"><button class="secondary" data-close>Schließen</button></div>
@@ -153,6 +181,7 @@
 <script src="db.js"></script>
 <script src="parse.js"></script>
 <script src="sync.js"></script>
+<script src="mail.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

@@ -1,0 +1,822 @@
+<title>B10 Golf</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: Scorecard-Raster – schmale Spalte, Kopfleiste oben, Tab-Leiste unten, Karten nur für Scorekarten */
+:root{
+  --bg:#F3F5EF; --surface:#FFFFFF; --sunk:#E9EDE4; --ink:#14231A; --muted:#5D6A61; --line:#D6DDD2;
+  --green:#1E6A44; --green-ink:#FFFFFF; --flag:#C23B2A; --sand:#C9A24A; --warn:#9A6A00;
+  --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E1611; --surface:#152019; --sunk:#1C2A21; --ink:#E6EEE8; --muted:#94A49A; --line:#2A3A30;
+  --green:#4DAE7C; --green-ink:#08130C; --flag:#F0705D; --sand:#D9B866; --warn:#E0B44A; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E1611; --surface:#152019; --sunk:#1C2A21; --ink:#E6EEE8; --muted:#94A49A; --line:#2A3A30;
+  --green:#4DAE7C; --green-ink:#08130C; --flag:#F0705D; --sand:#D9B866; --warn:#E0B44A; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--green)}
+.wrap{max-width:860px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--green);color:var(--green-ink)}
+header.top .wrap{display:flex;align-items:center;gap:12px;padding-block:10px}
+.brand{font-family:var(--display);font-weight:700;font-size:26px;letter-spacing:.02em;line-height:1}
+.brand small{font-weight:500;font-size:15px;opacity:.8;margin-left:6px;letter-spacing:.06em;text-transform:uppercase}
+.status{margin-left:auto;font-size:12px;opacity:.9;text-align:right}
+main{padding-block:16px 110px}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+nav.tabs .wrap{display:grid;grid-template-columns:repeat(3,1fr)}
+nav.tabs button{background:none;border:0;color:var(--muted);font:600 13px var(--body);padding:12px 4px;letter-spacing:.04em;text-transform:uppercase;cursor:pointer}
+nav.tabs button[aria-current="true"]{color:var(--green);box-shadow:inset 0 3px 0 var(--green)}
+h1,h2,h3{font-family:var(--display);font-weight:700;letter-spacing:.01em;text-wrap:balance;margin:0;line-height:1.1}
+h1{font-size:30px} h2{font-size:22px} h3{font-size:18px}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.muted{color:var(--muted)} .small{font-size:13px}
+.stack{display:flex;flex-direction:column;gap:12px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.spread{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.section{display:flex;flex-direction:column;gap:12px;padding-block:8px 20px}
+.btn{appearance:none;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:600 14px var(--body);padding:9px 14px;border-radius:8px;cursor:pointer;min-height:40px}
+.btn:hover{border-color:var(--green)}
+.btn.primary{background:var(--green);border-color:var(--green);color:var(--green-ink)}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--green);padding-inline:8px}
+.btn.danger{color:var(--flag);border-color:color-mix(in srgb,var(--flag) 40%,var(--line))}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible{outline:2px solid var(--sand);outline-offset:2px}
+.seg{display:inline-flex;background:var(--sunk);border-radius:8px;padding:3px;gap:2px}
+.seg button{border:0;background:transparent;color:var(--muted);font:600 13px var(--body);padding:7px 12px;border-radius:6px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgb(0 0 0/.12)}
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+.chip{flex:none;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:600 13px var(--body);padding:6px 11px;border-radius:999px;cursor:pointer;white-space:nowrap}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.list{display:flex;flex-direction:column;border-top:1px solid var(--line)}
+.item{display:flex;align-items:center;gap:12px;padding:12px 2px;border-bottom:1px solid var(--line);background:none;border-left:0;border-right:0;border-top:0;color:inherit;font:inherit;text-align:left;cursor:pointer;width:100%}
+.item:hover{background:var(--sunk)}
+.item .grow{flex:1;min-width:0}
+.item .title{font-weight:600}
+.badge{font:600 11px var(--body);letter-spacing:.06em;text-transform:uppercase;padding:3px 7px;border-radius:5px;background:var(--sunk);color:var(--muted);white-space:nowrap}
+.badge.live{background:color-mix(in srgb,var(--flag) 16%,transparent);color:var(--flag)}
+.badge.done{background:color-mix(in srgb,var(--green) 16%,transparent);color:var(--green)}
+.empty{border:1.5px dashed var(--line);border-radius:var(--r);padding:22px;text-align:center;color:var(--muted);display:flex;flex-direction:column;gap:10px;align-items:center}
+.note{background:color-mix(in srgb,var(--sand) 18%,var(--surface));border:1px solid color-mix(in srgb,var(--sand) 45%,var(--line));border-radius:8px;padding:10px 12px;font-size:13px}
+.num{font-variant-numeric:tabular-nums}
+.under{color:var(--flag)}
+/* Leaderboard */
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+table.lb{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+table.lb th{font:600 11px var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:right;padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.lb th:nth-child(2),table.lb td:nth-child(2){text-align:left;white-space:normal;min-width:120px}
+table.lb td{padding:10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+table.lb tr:last-child td{border-bottom:0}
+table.lb tbody tr{cursor:pointer}
+table.lb tbody tr:hover{background:var(--sunk)}
+td.pos{font-family:var(--display);font-weight:700;font-size:18px;text-align:center!important;width:44px;color:var(--muted)}
+tr.lead td.pos{color:var(--green)}
+td.score{font-family:var(--display);font-weight:700;font-size:22px}
+td.pl .nm{font-weight:600} td.pl .sub{font-size:12px;color:var(--muted)}
+td.drop{text-decoration:line-through;color:var(--muted)}
+/* Scorecard entry */
+.cardhead{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px}
+.kv .k{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.kv .v{font-family:var(--display);font-weight:700;font-size:22px;font-variant-numeric:tabular-nums}
+.holes{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.hole{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--line)}
+.hole:last-child{border-bottom:0}
+.hole.turn{border-bottom:2px solid var(--ink)}
+.hno{font-family:var(--display);font-weight:700;font-size:24px;text-align:center;line-height:1}
+.hmeta{font-size:12px;color:var(--muted);min-width:0}
+.hmeta b{color:var(--ink);font-weight:600}
+.hmeta .hnote{color:var(--warn);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dots{color:var(--green);letter-spacing:1px;font-weight:700}
+.stepper{display:flex;align-items:center;gap:6px}
+.stepper button{width:40px;height:40px;border-radius:8px;border:1px solid var(--line);background:var(--sunk);color:var(--ink);font:600 20px var(--body);cursor:pointer;line-height:1}
+.stepper button:disabled{opacity:.4}
+.stepper .sv{width:48px;height:44px;border-radius:8px;background:none;display:grid;place-items:center;font-family:var(--display);font-weight:700;font-size:24px;cursor:pointer;background:none;border:0;color:var(--ink);font-variant-numeric:tabular-nums;position:relative}
+.stepper .sv.empty{color:var(--muted);background:var(--sunk)}
+/* scorecard notation: circle under par, square over par */
+.mk{display:inline-grid;place-items:center;min-width:30px;height:30px;line-height:1;position:relative}
+.mk.b{border:1.5px solid var(--flag);border-radius:50%;color:var(--flag)}
+.mk.e{border:1.5px solid var(--flag);border-radius:50%;color:var(--flag);outline:1.5px solid var(--flag);outline-offset:2px}
+.mk.bo{border:1.5px solid var(--ink)}
+.mk.db{border:1.5px solid var(--ink);outline:1.5px solid var(--ink);outline-offset:2px}
+.totals{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.totals>div{background:var(--surface);padding:10px 12px}
+/* compact scorecard grid */
+.grid{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+.grid table{border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:13px;min-width:100%}
+.grid th,.grid td{border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:5px 4px;text-align:center;min-width:30px}
+.grid th:first-child,.grid td:first-child{text-align:left;padding-left:8px;min-width:70px;font-weight:600;position:sticky;left:0;background:var(--surface)}
+.grid tr.par td{color:var(--muted)}
+.grid td.sum{font-weight:700;background:var(--sunk)}
+/* forms + sheet */
+label.f{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;letter-spacing:.04em;color:var(--muted);min-width:0}
+input,select,textarea{font:15px var(--body);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 10px;width:100%;min-width:0}
+textarea{min-height:90px;resize:vertical}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.htable{overflow-x:auto}
+.htable table{border-collapse:collapse;width:100%}
+.htable th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:left;padding:4px}
+.htable td{padding:3px 4px}
+.htable td:first-child{font-family:var(--display);font-weight:700;font-size:18px;width:32px;text-align:center}
+.htable input{padding:6px 7px}
+.htable input.n{width:62px}
+#sheet{position:fixed;inset:0;z-index:20;background:rgb(0 0 0/.45);display:flex;align-items:flex-end;justify-content:center}
+#sheet .panel{background:var(--bg);width:100%;max-width:720px;max-height:92%;overflow:auto;border-radius:14px 14px 0 0;padding:18px max(16px,env(safe-area-inset-right,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:14px}
+@media (min-width:760px){#sheet{align-items:center}#sheet .panel{border-radius:14px}}
+.sheethead{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.x{background:none;border:0;font-size:26px;color:var(--muted);cursor:pointer;line-height:1;padding:4px 8px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:14px;z-index:30;max-width:calc(100% - 32px)}
+.pcheck{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
+.pcheck input[type=checkbox]{width:20px;height:20px;flex:none}
+.pcheck .grow{flex:1;min-width:0}
+.pcheck input.n{width:80px}
+.preview{display:flex;flex-wrap:wrap;gap:4px}
+.preview span{min-width:34px;text-align:center;border:1px solid var(--line);border-radius:6px;padding:4px 2px;font-variant-numeric:tabular-nums;background:var(--surface)}
+.preview span i{display:block;font-style:normal;font-size:10px;color:var(--muted)}
+@media (prefers-reduced-motion:no-preference){#sheet .panel{animation:up .18s ease-out}@keyframes up{from{transform:translateY(24px);opacity:.6}}}
+</style>
+
+<header class="top"><div class="wrap"><div class="brand">B10<small>Golf</small></div><div class="status" id="status"></div></div></header>
+<main><div class="wrap" id="app"></div></main>
+<nav class="tabs"><div class="wrap">
+  <button data-tab="turniere">Turniere</button>
+  <button data-tab="spieler">Spieler</button>
+  <button data-tab="plaetze">Plätze</button>
+</div></nav>
+<div id="sheet" hidden></div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+/* ============ Helpers ============ */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-5);
+const sum = (a) => a.reduce((x, y) => x + (Number(y) || 0), 0);
+const num = (v, d) => { const n = parseFloat(String(v ?? '').replace(',', '.')); return Number.isFinite(n) ? n : d; };
+const clone = (o) => (o == null ? o : JSON.parse(JSON.stringify(o)));
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const fmtPar = (v) => (v == null ? '–' : v === 0 ? 'E' : v > 0 ? '+' + v : String(v));
+const fmtDate = (d) => { if (!d) return ''; const x = new Date(d + 'T12:00:00'); return isNaN(x) ? d : x.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }); };
+const fmtHcp = (v) => (v == null || v === '' ? '–' : (v < 0 ? '+' + String(-v).replace('.', ',') : String(v).replace('.', ',')));
+let toastT;
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => (t.hidden = true), 3200); }
+
+/* ============ Daten ============ */
+// Sammlungen: players, courses, tournaments, scores (eine Scorekarte pro Turnier/Runde/Spieler)
+const COLS = ['players', 'courses', 'tournaments', 'scores'];
+const S = { players: {}, courses: {}, tournaments: {}, scores: {}, loaded: {}, mode: 'connecting', readOnly: false, me: null, slow: false, error: null };
+const pending = { players: {}, courses: {}, tournaments: {}, scores: {} };
+let db = null, userApi = null, sampleApi = null, canImages = false;
+const ui = Object.assign({ tab: 'turniere', view: 'list', tId: null, lb: 'netto', scope: 'all', roundId: null, playerId: null }, store.get('b10-ui', {}));
+const saveUi = () => store.set('b10-ui', { tab: ui.tab, view: ui.view, tId: ui.tId, lb: ui.lb, scope: ui.scope, roundId: ui.roundId, playerId: ui.playerId });
+
+let rq = false;
+function scheduleRender() { if (rq) return; rq = true; requestAnimationFrame(() => { rq = false; render(); }); }
+
+async function boot() {
+  render();
+  const c = window.claude;
+  if (!c || typeof c.use !== 'function') return startLocal();
+  const timer = setTimeout(() => { S.slow = true; render(); }, 10000);
+  db = await c.use('db').catch(() => null);
+  if (!db) { clearTimeout(timer); return startLocal(); }
+  S.mode = 'shared';
+  c.use('user').then(async (u) => {
+    userApi = u; if (!u) return;
+    try { S.me = await u.id(); } catch {}
+    try { if ((await u.can('data.write')) === false) S.readOnly = true; } catch {}
+    render();
+  }).catch(() => {});
+  c.use('sample').then(async (s) => {
+    sampleApi = s;
+    if (s) { try { canImages = !!(await s.limits()).images; } catch { canImages = false; } }
+    render();
+  }).catch(() => {});
+  COLS.forEach((col) => {
+    db.collection(col).onSnapshot((snap) => {
+      const m = {};
+      snap.docs.forEach((d) => { m[d.id] = d.data(); });
+      Object.assign(m, pending[col]);
+      S[col] = m; S.loaded[col] = true;
+      if (!snap.metadata.fromCache && COLS.every((k) => S.loaded[k])) { clearTimeout(timer); S.slow = false; }
+      scheduleRender();
+    }, (e) => { clearTimeout(timer); S.error = e.code; S.loaded[col] = true; render(); });
+  });
+}
+function startLocal() {
+  S.mode = 'local';
+  const d = store.get('b10-golf-data', {}) || {};
+  COLS.forEach((c) => { S[c] = d[c] || {}; S.loaded[c] = true; });
+  render();
+}
+const persistLocal = () => store.set('b10-golf-data', { players: S.players, courses: S.courses, tournaments: S.tournaments, scores: S.scores });
+
+const chains = {};
+function onWriteError(e) {
+  const code = e && e.code;
+  if (code === 'invalid_argument') { S.readOnly = true; toast('Nur Leserechte: Bitte den Besitzer, dich als Mitwirkende/n einzuladen.'); }
+  else if (code === 'quota_exceeded') toast('Speicher voll – bitte alte Turniere löschen.');
+  else toast('Speichern fehlgeschlagen – bitte erneut versuchen.');
+  render();
+}
+function save(col, id, data) {
+  if (S.readOnly) { toast('Nur Leserechte – Änderung nicht gespeichert.'); return Promise.resolve(); }
+  const doc = { ...clone(data), id, updatedAt: Date.now() };
+  if (S.me) doc.updatedBy = S.me;
+  S[col] = { ...S[col], [id]: doc };
+  if (S.mode !== 'shared') { persistLocal(); scheduleRender(); return Promise.resolve(); }
+  pending[col][id] = doc;
+  const key = col + '/' + id;
+  const p = (chains[key] || Promise.resolve())
+    .then(() => db.collection(col).doc(id).set(doc))
+    .catch(onWriteError)
+    .finally(() => { if (pending[col][id] === doc) delete pending[col][id]; });
+  chains[key] = p; scheduleRender();
+  return p;
+}
+function removeDoc(col, id) {
+  const m = { ...S[col] }; delete m[id]; S[col] = m; delete pending[col][id];
+  if (S.mode !== 'shared') { persistLocal(); scheduleRender(); return Promise.resolve(); }
+  const key = col + '/' + id;
+  const p = (chains[key] || Promise.resolve()).then(() => db.collection(col).doc(id).delete()).catch(onWriteError);
+  chains[key] = p; scheduleRender(); return p;
+}
+
+/* ============ Golf-Rechnung (WHS) ============ */
+const skey = (tid, rid, pid) => `${tid}__${rid}__${pid}`;
+const teeOf = (course, name) => (course.tees || []).find((t) => t.name === name) || (course.tees || [])[0] || {};
+const coursePar = (course) => sum((course.holes || []).map((h) => h.par));
+// Course Handicap = HI × Slope/113 + (CR − Par); bei 9 Löchern mit halbem Index
+function courseHcp(hi, course, tee, sex) {
+  const n = (course.holes || []).length || 18;
+  const w = sex === 'w';
+  const cr = num(w && tee.crW ? tee.crW : tee.crM, null);
+  const slope = num(w && tee.slopeW ? tee.slopeW : tee.slopeM, null);
+  const h = n === 9 ? hi / 2 : hi;
+  if (cr == null || slope == null) return Math.round(h);
+  return Math.round(h * slope / 113 + (cr - coursePar(course)));
+}
+// Vorgabeschläge je Loch nach Handicap-Reihenfolge (SI)
+function strokeAlloc(ph, holes) {
+  const n = holes.length; if (!n) return [];
+  const order = holes.map((h, i) => ({ i, si: num(h.si, 99) })).sort((a, b) => a.si - b.si || a.i - b.i);
+  const rank = []; order.forEach((o, r) => (rank[o.i] = r + 1));
+  const p = Math.abs(ph), base = Math.floor(p / n), rem = p % n;
+  return holes.map((_, i) => (ph >= 0 ? base + (rank[i] <= rem ? 1 : 0) : -(base + (rank[i] > n - rem ? 1 : 0))));
+}
+function playerHi(t, pid) { const p = S.players[pid] || {}; const o = t.hcp && t.hcp[pid]; return num(o, num(p.hcp, 54)); }
+function roundResult(t, r, pid) {
+  const course = S.courses[r.courseId]; if (!course) return null;
+  const holes = course.holes || []; const n = holes.length;
+  const tee = teeOf(course, r.tee); const p = S.players[pid] || {};
+  const hi = playerHi(t, pid);
+  const ch = courseHcp(hi, course, tee, p.sex);
+  const ph = Math.round(ch * num(t.allowance, 100) / 100);
+  const recv = strokeAlloc(ph, holes);
+  const st = (S.scores[skey(t.id, r.id, pid)] || {}).strokes || [];
+  const o = { n, hi, ch, ph, recv, played: 0, gross: 0, net: 0, par: 0, sfG: 0, sfN: 0, g: [] };
+  holes.forEach((h, i) => {
+    let g = st[i]; const par = num(h.par, 4);
+    if (!(g > 0)) { o.g.push(null); return; }
+    if (t.maxScore === 'ndb') g = Math.min(g, par + 2 + recv[i]);
+    o.played++; o.gross += g; o.net += g - recv[i]; o.par += par;
+    o.sfG += Math.max(0, 2 + par - g); o.sfN += Math.max(0, 2 + par + recv[i] - g);
+    o.g.push(g);
+  });
+  o.toParG = o.gross - o.par; o.toParN = o.net - o.par; o.complete = n > 0 && o.played === n;
+  return o;
+}
+function leaderboard(t, scope, mode) {
+  const sf = t.format === 'stableford';
+  const rounds = (t.rounds || []).filter((r) => scope === 'all' || r.id === scope);
+  const metricOf = (res) => (!res || !res.played ? null : sf ? (mode === 'brutto' ? res.sfG : res.sfN) : (mode === 'brutto' ? res.toParG : res.toParN));
+  const better = (a, b) => (sf ? b - a : a - b);
+  const rows = (t.playerIds || []).filter((pid) => S.players[pid]).map((pid) => {
+    const per = rounds.map((r) => ({ r, res: roundResult(t, r, pid), dropped: false }));
+    let counted = per.filter((x) => metricOf(x.res) != null);
+    const best = num(t.countBest, 0);
+    if (scope === 'all' && best > 0 && counted.length > best) {
+      const sorted = [...counted].sort((a, b) => better(metricOf(a.res), metricOf(b.res)));
+      const keep = new Set(sorted.slice(0, best));
+      counted.forEach((x) => (x.dropped = !keep.has(x)));
+      counted = sorted.slice(0, best);
+    }
+    return {
+      pid, per,
+      metric: counted.length ? sum(counted.map((x) => metricOf(x.res))) : null,
+      strokes: sum(counted.map((x) => (mode === 'brutto' ? x.res.gross : x.res.net))),
+      played: sum(per.map((x) => (x.res ? x.res.played : 0))),
+      total: sum(per.map((x) => (x.res ? x.res.n : 0))),
+    };
+  });
+  rows.sort((a, b) => (a.metric == null) - (b.metric == null) || (a.metric != null && better(a.metric, b.metric)) || b.played - a.played || (S.players[a.pid].name || '').localeCompare(S.players[b.pid].name || ''));
+  rows.forEach((r, i) => { r.pos = r.metric == null ? '–' : i > 0 && rows[i - 1].metric === r.metric ? rows[i - 1].pos : i + 1; });
+  const counts = {}; rows.forEach((r) => (counts[r.pos] = (counts[r.pos] || 0) + 1));
+  rows.forEach((r) => (r.posLabel = r.pos === '–' ? '–' : (counts[r.pos] > 1 ? 'T' : '') + r.pos));
+  return { rows, rounds, sf, metricOf };
+}
+function mark(g, par) {
+  if (g == null) return '';
+  const d = g - par;
+  const c = d <= -2 ? 'e' : d === -1 ? 'b' : d === 1 ? 'bo' : d >= 2 ? 'db' : '';
+  return `<span class="mk ${c}">${g}</span>`;
+}
+function tStatus(t) {
+  const rs = t.rounds || []; if (!rs.length) return { k: '', l: 'In Planung' };
+  let played = 0, total = 0;
+  rs.forEach((r) => (t.playerIds || []).forEach((pid) => { const x = roundResult(t, r, pid); if (x) { played += x.played; total += x.n; } }));
+  if (total && played === total) return { k: 'done', l: 'Beendet' };
+  if (played > 0) return { k: 'live', l: 'Läuft' };
+  return { k: '', l: 'Geplant' };
+}
+const myPlayerId = () => { if (S.me) { const p = Object.values(S.players).find((x) => x.userId === S.me); if (p) return p.id; } return store.get('b10-me', null); };
+const playersSorted = () => Object.values(S.players).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+/* ============ Render ============ */
+function render() {
+  $$('nav.tabs button').forEach((b) => b.setAttribute('aria-current', String(b.dataset.tab === ui.tab)));
+  const st = $('#status');
+  st.textContent = S.mode === 'shared' ? (S.readOnly ? 'Gemeinsam · nur lesen' : 'Gemeinsam · live') : S.mode === 'local' ? 'Nur auf diesem Gerät' : 'Verbinde…';
+  const app = $('#app');
+  if (S.mode === 'connecting' || !COLS.every((c) => S.loaded[c])) {
+    app.innerHTML = `<div class="empty">${S.slow ? 'Die gemeinsamen Daten sind gerade nicht erreichbar. Sobald die Verbindung steht, erscheinen sie hier automatisch.' : 'Lade Turniere, Spieler und Plätze…'}</div>`;
+    return;
+  }
+  let html = '';
+  if (S.error) html += `<div class="note">Die Live-Verbindung wurde unterbrochen (${esc(S.error)}). Bitte die Seite neu öffnen.</div>`;
+  if (S.readOnly) html += `<div class="note">Du kannst alles ansehen, aber nichts eintragen. Der Besitzer muss dich beim Teilen als <b>Mitwirkende/r (Contributor)</b> oder Bearbeiter/in einladen.</div>`;
+  if (ui.tab === 'spieler') html += viewPlayers();
+  else if (ui.tab === 'plaetze') html += viewCourses();
+  else if (ui.view === 'card' && S.tournaments[ui.tId]) html += viewCard();
+  else if (ui.view === 'detail' && S.tournaments[ui.tId]) html += viewTournament();
+  else { ui.view = 'list'; html += viewTournaments(); }
+  app.innerHTML = html;
+}
+
+function viewTournaments() {
+  const ts = Object.values(S.tournaments).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  const np = Object.keys(S.players).length, nc = Object.keys(S.courses).length;
+  let h = `<div class="section"><div class="spread"><div><div class="eyebrow">B10 Golffreunde</div><h1>Turniere</h1></div>
+    <button class="btn primary" data-a="newT">+ Neues Turnier</button></div>`;
+  if (!np || !nc) {
+    h += `<div class="note"><b>So startet ihr:</b> ${!np ? '1. Unter <b>Spieler</b> alle B10-Mitglieder mit Handicap-Index anlegen. ' : ''}${!nc ? `${!np ? '2' : '1'}. Unter <b>Plätze</b> eure Plätze mit Par, Handicap-Reihenfolge, Course Rating und Slope erfassen (oder Scorecard-Foto auslesen lassen). ` : ''}Danach ein Turnier mit mehreren Runden anlegen.</div>`;
+  }
+  if (!ts.length) h += `<div class="empty"><div>Noch kein Turnier. Ein Turnier besteht aus mehreren Runden auf verschiedenen Plätzen – mit Brutto- und Nettowertung.</div><button class="btn primary" data-a="newT">Erstes Turnier anlegen</button></div>`;
+  else {
+    h += `<div class="list">` + ts.map((t) => {
+      const s = tStatus(t);
+      const courses = (t.rounds || []).map((r) => (S.courses[r.courseId] || {}).name).filter(Boolean);
+      return `<button class="item" data-a="openT" data-id="${esc(t.id)}"><div class="grow"><div class="title">${esc(t.name)}</div>
+        <div class="small muted">${(t.rounds || []).length} Runde${(t.rounds || []).length === 1 ? '' : 'n'} · ${(t.playerIds || []).length} Spieler · ${t.format === 'stableford' ? 'Stableford' : 'Zählspiel'}${courses.length ? ' · ' + esc([...new Set(courses)].join(', ')) : ''}</div></div>
+        <span class="badge ${s.k}">${s.l}</span></button>`;
+    }).join('') + `</div>`;
+  }
+  return h + `</div>`;
+}
+
+function viewTournament() {
+  const t = S.tournaments[ui.tId];
+  const rounds = t.rounds || [];
+  if (ui.scope !== 'all' && !rounds.find((r) => r.id === ui.scope)) ui.scope = 'all';
+  const lb = leaderboard(t, ui.scope, ui.lb);
+  const sf = lb.sf;
+  let h = `<div class="section"><button class="btn ghost" data-a="back" style="align-self:flex-start">‹ Alle Turniere</button>
+    <div class="spread"><div style="min-width:0"><div class="eyebrow">${sf ? 'Stableford' : 'Zählspiel'} · Vorgabe ${num(t.allowance, 100)} %${t.maxScore === 'ndb' ? ' · Max. Netto-Doppelbogey' : ''}${num(t.countBest, 0) ? ` · beste ${t.countBest} Runden zählen` : ''}</div><h1>${esc(t.name)}</h1></div>
+    <div class="row"><button class="btn" data-a="editT">Einstellungen</button><button class="btn primary" data-a="enter">Scores eintragen</button></div></div>`;
+  if (!rounds.length || !(t.playerIds || []).length) {
+    h += `<div class="empty">Noch ${!rounds.length ? 'keine Runden' : ''}${!rounds.length && !(t.playerIds || []).length ? ' und ' : ''}${!(t.playerIds || []).length ? 'keine Spieler' : ''}. Unter <b>Einstellungen</b> Spieler auswählen und Runden auf euren Plätzen hinzufügen.<button class="btn primary" data-a="editT">Einstellungen öffnen</button></div></div>`;
+    return h;
+  }
+  h += `<div class="spread"><div class="seg" role="group" aria-label="Wertung">
+      <button data-a="lb" data-v="brutto" aria-pressed="${ui.lb === 'brutto'}">Brutto</button>
+      <button data-a="lb" data-v="netto" aria-pressed="${ui.lb === 'netto'}">Netto</button></div>
+    <div class="chips" role="group" aria-label="Runde"><button class="chip" data-a="scope" data-v="all" aria-pressed="${ui.scope === 'all'}">Gesamt</button>
+    ${rounds.map((r, i) => `<button class="chip" data-a="scope" data-v="${esc(r.id)}" aria-pressed="${ui.scope === r.id}">R${i + 1} · ${esc((S.courses[r.courseId] || {}).name || '?')}</button>`).join('')}</div></div>`;
+  const multi = lb.rounds.length > 1;
+  h += `<div class="tablewrap"><table class="lb"><thead><tr><th style="text-align:center">Pos</th><th>Spieler</th>
+    ${sf ? '' : '<th>Par</th>'}<th>${sf ? 'Punkte' : ui.lb === 'brutto' ? 'Schläge' : 'Netto'}</th>
+    ${multi ? lb.rounds.map((r) => `<th>R${rounds.indexOf(r) + 1}</th>`).join('') : '<th>Loch</th>'}</tr></thead><tbody>`;
+  lb.rows.forEach((row, i) => {
+    const p = S.players[row.pid];
+    const phs = row.per.map((x) => x.res && x.res.ph).filter((v) => v != null);
+    const sub = `HCP ${fmtHcp(playerHi(t, row.pid))}${ui.lb === 'netto' && phs.length ? ` · Vorgabe ${phs.join('/')}` : ''}`;
+    const cells = multi
+      ? row.per.map((x) => { const v = lb.metricOf(x.res); const shown = v == null ? '–' : sf ? v : (ui.lb === 'brutto' ? x.res.gross : x.res.net); const thru = x.res && x.res.played && !x.res.complete ? `<span class="small muted"> (${x.res.played})</span>` : ''; return `<td class="${x.dropped ? 'drop' : ''}">${shown}${thru}</td>`; }).join('')
+      : `<td class="muted">${row.played === row.total ? 'F' : row.played || '–'}</td>`;
+    const big = row.metric == null ? '–' : sf ? row.metric : row.strokes;
+    const parCell = sf ? '' : `<td class="score ${row.metric < 0 ? 'under' : ''}">${row.metric == null ? '–' : fmtPar(row.metric)}</td>`;
+    h += `<tr class="${i === 0 && row.metric != null ? 'lead' : ''}" data-a="showCard" data-id="${esc(row.pid)}"><td class="pos">${row.posLabel}</td>
+      <td class="pl"><div class="nm">${esc(p.name)}${row.pid === myPlayerId() ? ' <span class="badge">Du</span>' : ''}</div><div class="sub">${sub}</div></td>${parCell}
+      <td class="${sf ? 'score' : ''}">${big}</td>${cells}</tr>`;
+  });
+  h += `</tbody></table></div><div class="small muted">${sf ? 'Stableford: Punkte je Loch = 2 + Par − Schläge (netto mit Vorgabeschlägen). Höchste Punktzahl gewinnt.' : 'Zählspiel: Wertung nach Schlägen zu Par über alle gespielten Löcher. Rot = unter Par.'} Zeile antippen für die Scorekarte. In Klammern: gespielte Löcher einer laufenden Runde.</div>`;
+  h += `<h2 style="margin-top:8px">Runden</h2><div class="list">` + rounds.map((r, i) => {
+    const c = S.courses[r.courseId] || {}; const tee = teeOf(c, r.tee);
+    return `<button class="item" data-a="enterRound" data-id="${esc(r.id)}"><div class="hno" style="width:40px">R${i + 1}</div><div class="grow"><div class="title">${esc(c.name || 'Platz gelöscht')}</div>
+      <div class="small muted">${fmtDate(r.date)}${r.date ? ' · ' : ''}${esc(tee.name || '')} · Par ${coursePar(c) || '–'}${tee.crM ? ` · CR ${esc(tee.crM)} / Slope ${esc(tee.slopeM)}` : ''}</div></div><span class="btn ghost">Eintragen ›</span></button>`;
+  }).join('') + `</div></div>`;
+  return h;
+}
+
+function viewCard() {
+  const t = S.tournaments[ui.tId];
+  const rounds = t.rounds || []; const pids = (t.playerIds || []).filter((p) => S.players[p]);
+  if (!rounds.length || !pids.length) { ui.view = 'detail'; return viewTournament(); }
+  if (!rounds.find((r) => r.id === ui.roundId)) ui.roundId = rounds[0].id;
+  if (!pids.includes(ui.playerId)) ui.playerId = pids.includes(myPlayerId()) ? myPlayerId() : pids[0];
+  const r = rounds.find((x) => x.id === ui.roundId); const c = S.courses[r.courseId];
+  const me = myPlayerId();
+  const orderedP = [...pids].sort((a, b) => (b === me) - (a === me) || (S.players[a].name || '').localeCompare(S.players[b].name || ''));
+  let h = `<div class="section"><button class="btn ghost" data-a="openT" data-id="${esc(t.id)}" style="align-self:flex-start">‹ ${esc(t.name)}</button>
+    <div class="chips" aria-label="Runde">${rounds.map((x, i) => `<button class="chip" data-a="pickRound" data-id="${esc(x.id)}" aria-pressed="${x.id === r.id}">R${i + 1} · ${esc((S.courses[x.courseId] || {}).name || '?')}</button>`).join('')}</div>
+    <div class="chips" aria-label="Spieler">${orderedP.map((pid) => { const res = roundResult(t, r, pid); return `<button class="chip" data-a="pickPlayer" data-id="${esc(pid)}" aria-pressed="${pid === ui.playerId}">${esc(S.players[pid].name)}${res && res.played ? ` · ${res.complete ? '✓' : res.played}` : ''}</button>`; }).join('')}</div>`;
+  if (!c) return h + `<div class="empty">Der Platz dieser Runde wurde gelöscht. Bitte in den Turnier-Einstellungen einen anderen Platz wählen.</div></div>`;
+  if (!(c.holes || []).length) return h + `<div class="empty">Für ${esc(c.name)} sind noch keine Löcher erfasst.<button class="btn" data-a="editC" data-id="${esc(c.id)}">Platz bearbeiten</button></div></div>`;
+  const p = S.players[ui.playerId]; const tee = teeOf(c, r.tee);
+  const res = roundResult(t, r, ui.playerId);
+  const sc = S.scores[skey(t.id, r.id, ui.playerId)];
+  const holes = c.holes;
+  h += `<div class="spread"><div style="min-width:0"><div class="eyebrow">${esc(c.name)} · ${esc(tee.name || '')} · ${fmtDate(r.date)}</div><h2>${esc(p.name)}</h2></div>
+    <div class="row"><button class="btn" data-a="import" ${S.readOnly ? 'disabled' : ''}>Aus Hole19 übernehmen</button></div></div>`;
+  if (c.notes) h += `<div class="note"><b>Platz-Besonderheiten:</b> ${esc(c.notes)}</div>`;
+  h += `<div class="cardhead">
+    <div class="kv"><div class="k">HCP-Index</div><div class="v">${fmtHcp(res.hi)}</div></div>
+    <div class="kv"><div class="k">Course HCP</div><div class="v">${res.ch}</div></div>
+    <div class="kv"><div class="k">Spielvorgabe</div><div class="v">${res.ph}</div></div>
+    <div class="kv"><div class="k">CR / Slope</div><div class="v">${esc((p.sex === 'w' && tee.crW) ? tee.crW : tee.crM || '–')} / ${esc((p.sex === 'w' && tee.slopeW) ? tee.slopeW : tee.slopeM || '–')}</div></div></div>`;
+  h += `<div class="holes">` + holes.map((ho, i) => {
+    const g = (sc && sc.strokes || [])[i]; const has = g > 0; const par = num(ho.par, 4); const rv = res.recv[i];
+    return `<div class="hole ${i === 8 && holes.length === 18 ? 'turn' : ''}"><div class="hno">${i + 1}</div>
+      <div class="hmeta"><b>Par ${par}</b> · HCP ${esc(ho.si ?? '–')}${ho.len ? ` · ${esc(ho.len)} m` : ''} ${rv > 0 ? `<span class="dots" title="${rv} Vorgabeschlag">${'●'.repeat(rv)}</span>` : rv < 0 ? `<span class="dots" title="Plus-Handicap">−${-rv}</span>` : ''}
+        ${has ? `<span> · Netto ${g - rv}${t.format === 'stableford' ? ` · ${Math.max(0, 2 + par + rv - g)} Pkt` : ''}</span>` : ''}${ho.note ? `<span class="hnote">⚑ ${esc(ho.note)}</span>` : ''}</div>
+      <div class="stepper"><button data-a="dec" data-i="${i}" aria-label="Loch ${i + 1} minus" ${S.readOnly ? 'disabled' : ''}>−</button>
+        <button class="sv ${has ? '' : 'empty'}" data-a="tapv" data-i="${i}" aria-label="Loch ${i + 1}: ${has ? g + ' Schläge' : 'leer, antippen für Par'}" ${S.readOnly ? 'disabled' : ''}>${has ? mark(g, par) : '–'}</button>
+        <button data-a="inc" data-i="${i}" aria-label="Loch ${i + 1} plus" ${S.readOnly ? 'disabled' : ''}>+</button></div></div>`;
+  }).join('') + `</div>`;
+  const half = (a, b) => { let s = 0, any = false; for (let i = a; i < b && i < holes.length; i++) { const g = (sc && sc.strokes || [])[i]; if (g > 0) { s += g; any = true; } } return any ? s : '–'; };
+  h += `<div class="totals">
+    ${holes.length === 18 ? `<div class="kv"><div class="k">Out / In</div><div class="v">${half(0, 9)} / ${half(9, 18)}</div></div>` : ''}
+    <div class="kv"><div class="k">Brutto</div><div class="v">${res.played ? res.gross : '–'} <span class="small ${res.toParG < 0 ? 'under' : 'muted'}">${res.played ? fmtPar(res.toParG) : ''}</span></div></div>
+    <div class="kv"><div class="k">Netto</div><div class="v">${res.played ? res.net : '–'} <span class="small ${res.toParN < 0 ? 'under' : 'muted'}">${res.played ? fmtPar(res.toParN) : ''}</span></div></div>
+    <div class="kv"><div class="k">Stableford br./net.</div><div class="v">${res.played ? `${res.sfG} / ${res.sfN}` : '–'}</div></div>
+    <div class="kv"><div class="k">Gespielt</div><div class="v">${res.played}/${res.n}</div></div></div>`;
+  h += `<div class="small muted">Leeres Feld antippen = Par eintragen, dann mit − / + anpassen. Unter 1 wird das Loch geleert. ● = Vorgabeschlag auf diesem Loch.${sc ? ` Zuletzt gespeichert ${new Date(sc.updatedAt).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}${sc.source === 'hole19' ? ' · aus Hole19 übernommen' : ''}<span id="byline"></span>.` : ''}</div></div>`;
+  if (sc && sc.updatedBy && userApi) userApi.profiles([sc.updatedBy]).then((ps) => { const el = $('#byline'); const n = ps && ps[sc.updatedBy] && ps[sc.updatedBy].name; if (el && n) el.textContent = ' von ' + n; }).catch(() => {});
+  return h;
+}
+
+function viewPlayers() {
+  const ps = playersSorted(); const me = myPlayerId();
+  let h = `<div class="section"><div class="spread"><div><div class="eyebrow">B10</div><h1>Spieler</h1></div><button class="btn primary" data-a="newP">+ Spieler</button></div>`;
+  if (!ps.length) return h + `<div class="empty">Noch keine Spieler. Legt alle B10-Freunde mit ihrem aktuellen Handicap-Index an – das ist die Basis für die Nettowertung.<button class="btn primary" data-a="newP">Ersten Spieler anlegen</button></div></div>`;
+  h += `<div class="list">` + ps.map((p) => `<button class="item" data-a="editP" data-id="${esc(p.id)}"><div class="hno" style="width:52px;font-size:22px">${fmtHcp(p.hcp)}</div>
+    <div class="grow"><div class="title">${esc(p.name)} ${p.id === me ? '<span class="badge">Du</span>' : ''}</div><div class="small muted">${p.sex === 'w' ? 'Damen' : 'Herren'}-Abschlag${p.hole19 ? ' · Hole19: ' + esc(p.hole19) : ''}${p.homeclub ? ' · ' + esc(p.homeclub) : ''}</div></div><span class="muted">›</span></button>`).join('') + `</div>`;
+  h += `<div class="small muted">Die erste Spalte zeigt den Handicap-Index. Pro Turnier kann der Index eingefroren oder angepasst werden.</div></div>`;
+  return h;
+}
+
+function viewCourses() {
+  const cs = Object.values(S.courses).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  let h = `<div class="section"><div class="spread"><div><div class="eyebrow">Spielorte</div><h1>Plätze</h1></div><button class="btn primary" data-a="newC">+ Platz</button></div>`;
+  if (!cs.length) return h + `<div class="empty">Noch keine Plätze. Pro Platz: Par und Handicap-Reihenfolge je Loch, Abschläge mit Course Rating und Slope, dazu Besonderheiten wie Wasser, Aus oder Platzregeln.<button class="btn primary" data-a="newC">Ersten Platz anlegen</button></div></div>`;
+  h += `<div class="list">` + cs.map((c) => `<button class="item" data-a="editC" data-id="${esc(c.id)}"><div class="hno" style="width:52px;font-size:22px">${(c.holes || []).length || '–'}</div>
+    <div class="grow"><div class="title">${esc(c.name)}</div><div class="small muted">${c.location ? esc(c.location) + ' · ' : ''}Par ${coursePar(c) || '–'} · ${(c.tees || []).map((t) => esc(t.name) + (t.crM ? ` ${esc(t.crM)}/${esc(t.slopeM)}` : '')).join(', ') || 'keine Abschläge'}</div>
+    ${c.notes ? `<div class="small" style="color:var(--warn)">⚑ ${esc(c.notes)}</div>` : ''}</div><span class="muted">›</span></button>`).join('') + `</div></div>`;
+  return h;
+}
+
+/* ============ Sheets (Formulare) ============ */
+function openSheet(title, body, onMount) {
+  const sh = $('#sheet');
+  sh.innerHTML = `<div class="panel" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="sheethead"><h2>${esc(title)}</h2><button class="x" data-close aria-label="Schließen">×</button></div>${body}</div>`;
+  sh.hidden = false;
+  sh.onclick = (e) => { if (e.target === sh || e.target.closest('[data-close]')) closeSheet(); };
+  onMount && onMount(sh.querySelector('.panel'));
+  const f = sh.querySelector('input,select,textarea'); if (f && matchMedia('(min-width:760px)').matches) f.focus();
+}
+function closeSheet() { const sh = $('#sheet'); sh.hidden = true; sh.innerHTML = ''; }
+function confirmIn(panel, btn, text, fn) {
+  if (btn.dataset.armed) { fn(); return; }
+  btn.dataset.armed = '1'; const old = btn.textContent; btn.textContent = text;
+  setTimeout(() => { if (btn.isConnected) { delete btn.dataset.armed; btn.textContent = old; } }, 3500);
+}
+
+function playerSheet(id) {
+  const p = id ? S.players[id] : { name: '', hcp: '', sex: 'm', hole19: '', homeclub: '' };
+  const isMe = id && id === myPlayerId();
+  openSheet(id ? 'Spieler bearbeiten' : 'Neuer Spieler', `
+    <form id="pf" class="stack">
+      <label class="f">Name<input id="p_name" required value="${esc(p.name)}" placeholder="z. B. Thomas"></label>
+      <div class="fgrid">
+        <label class="f">Handicap-Index<input id="p_hcp" inputmode="decimal" value="${esc(p.hcp ?? '')}" placeholder="z. B. 14,3 (Plus: −1,2)"></label>
+        <label class="f">Abschlag<select id="p_sex"><option value="m" ${p.sex !== 'w' ? 'selected' : ''}>Herren</option><option value="w" ${p.sex === 'w' ? 'selected' : ''}>Damen</option></select></label>
+      </div>
+      <div class="fgrid">
+        <label class="f">Hole19-Name (optional)<input id="p_h19" value="${esc(p.hole19 || '')}"></label>
+        <label class="f">Heimatclub (optional)<input id="p_club" value="${esc(p.homeclub || '')}"></label>
+      </div>
+      ${id ? `<div class="row"><button type="button" class="btn" id="p_me">${isMe ? '✓ Das bin ich' : 'Das bin ich'}</button><span class="small muted">Dann bist du beim Eintragen vorausgewählt.</span></div>` : ''}
+      <div class="spread"><div>${id ? '<button type="button" class="btn danger" id="p_del">Löschen</button>' : ''}</div>
+      <div class="row"><button type="button" class="btn" data-close>Abbrechen</button><button class="btn primary">Speichern</button></div></div>
+    </form>`, (panel) => {
+    $('#pf', panel).onsubmit = (e) => {
+      e.preventDefault();
+      const name = $('#p_name', panel).value.trim(); if (!name) return;
+      const hcpRaw = $('#p_hcp', panel).value.trim();
+      const pid = id || uid();
+      save('players', pid, { ...(id ? clone(S.players[id]) : { createdAt: Date.now() }), name, hcp: hcpRaw === '' ? null : num(hcpRaw.replace('+', '-'), null), sex: $('#p_sex', panel).value, hole19: $('#p_h19', panel).value.trim(), homeclub: $('#p_club', panel).value.trim() });
+      closeSheet(); toast(id ? 'Spieler gespeichert' : name + ' angelegt');
+    };
+    const meB = $('#p_me', panel);
+    if (meB) meB.onclick = () => {
+      store.set('b10-me', id);
+      if (S.me) Object.values(S.players).forEach((x) => { if (x.userId === S.me && x.id !== id) { const y = clone(x); delete y.userId; save('players', x.id, y); } });
+      if (S.me) save('players', id, { ...clone(S.players[id]), userId: S.me });
+      meB.textContent = '✓ Das bin ich'; toast('Gemerkt');
+    };
+    const del = $('#p_del', panel);
+    if (del) del.onclick = () => confirmIn(panel, del, 'Wirklich löschen?', () => { removeDoc('players', id); closeSheet(); toast('Spieler gelöscht'); });
+  });
+}
+
+function holesRows(holes) {
+  return holes.map((h, i) => `<tr><td>${i + 1}</td>
+    <td><input class="n" data-h="par" data-i="${i}" inputmode="numeric" value="${esc(h.par ?? '')}" aria-label="Par Loch ${i + 1}"></td>
+    <td><input class="n" data-h="si" data-i="${i}" inputmode="numeric" value="${esc(h.si ?? '')}" aria-label="Handicap Loch ${i + 1}"></td>
+    <td><input class="n" data-h="len" data-i="${i}" inputmode="numeric" value="${esc(h.len ?? '')}" aria-label="Länge Loch ${i + 1}"></td>
+    <td><input data-h="note" data-i="${i}" value="${esc(h.note ?? '')}" placeholder="z. B. Wasser links, Aus rechts" aria-label="Besonderheit Loch ${i + 1}"></td></tr>`).join('');
+}
+function teeRow(t, i) {
+  return `<tr data-tee="${i}"><td><input data-t="name" value="${esc(t.name || '')}" placeholder="Gelb" aria-label="Abschlag"></td>
+    <td><input class="n" data-t="crM" inputmode="decimal" value="${esc(t.crM || '')}" placeholder="71,2" aria-label="CR Herren"></td>
+    <td><input class="n" data-t="slopeM" inputmode="numeric" value="${esc(t.slopeM || '')}" placeholder="128" aria-label="Slope Herren"></td>
+    <td><input class="n" data-t="crW" inputmode="decimal" value="${esc(t.crW || '')}" aria-label="CR Damen"></td>
+    <td><input class="n" data-t="slopeW" inputmode="numeric" value="${esc(t.slopeW || '')}" aria-label="Slope Damen"></td>
+    <td><button type="button" class="x" data-deltee="${i}" aria-label="Abschlag entfernen">×</button></td></tr>`;
+}
+const defaultHoles = (n) => Array.from({ length: n }, (_, i) => ({ par: 4, si: n === 9 ? i * 2 + 1 : i + 1 }));
+function courseSheet(id) {
+  const c = id ? clone(S.courses[id]) : { name: '', location: '', notes: '', holes: defaultHoles(18), tees: [{ name: 'Gelb', crM: '', slopeM: '', crW: '', slopeW: '' }, { name: 'Rot', crM: '', slopeM: '', crW: '', slopeW: '' }] };
+  if (!c.tees || !c.tees.length) c.tees = [{ name: 'Gelb' }];
+  openSheet(id ? 'Platz bearbeiten' : 'Neuer Platz', `
+    <form id="cf" class="stack">
+      ${sampleApi ? `<div class="note row" style="justify-content:space-between"><span>Scorecard als Foto/Screenshot (z. B. aus Hole19) oder Text auslesen lassen.</span><span class="row"><label class="btn" ${canImages ? '' : 'hidden'}>Foto wählen<input type="file" id="c_img" accept="image/*" hidden></label><button type="button" class="btn" id="c_txt">Text einfügen</button></span></div><div id="c_ai" class="small muted" hidden></div><textarea id="c_paste" hidden placeholder="Scorecard-Text hier einfügen (Par, HCP, CR/Slope …)"></textarea>` : ''}
+      <div class="fgrid"><label class="f">Name<input id="c_name" required value="${esc(c.name)}" placeholder="z. B. GC Beuerberg"></label>
+      <label class="f">Ort<input id="c_loc" value="${esc(c.location || '')}"></label>
+      <label class="f">Löcher<select id="c_n"><option value="18" ${(c.holes || []).length !== 9 ? 'selected' : ''}>18</option><option value="9" ${(c.holes || []).length === 9 ? 'selected' : ''}>9</option></select></label></div>
+      <label class="f">Besonderheiten & Platzregeln<textarea id="c_notes" placeholder="z. B. Besserlegen erlaubt, Drop-Zone an Loch 7, Buggy-Pflicht, Wintergrüns …">${esc(c.notes || '')}</textarea></label>
+      <div><h3>Abschläge</h3><div class="small muted">Course Rating (CR) und Slope stehen auf der Scorecard oder beim Verband. Damen-Werte optional.</div></div>
+      <div class="htable"><table><thead><tr><th>Abschlag</th><th>CR Herren</th><th>Slope H.</th><th>CR Damen</th><th>Slope D.</th><th></th></tr></thead><tbody id="c_tees">${c.tees.map(teeRow).join('')}</tbody></table></div>
+      <button type="button" class="btn" id="c_addtee" style="align-self:flex-start">+ Abschlag</button>
+      <div><h3>Löcher</h3><div class="small muted">HCP = Handicap-Reihenfolge (Stroke Index, 1 = schwerstes Loch). Daraus werden die Vorgabeschläge verteilt.</div></div>
+      <div class="htable"><table><thead><tr><th>#</th><th>Par</th><th>HCP</th><th>Meter</th><th>Besonderheit</th></tr></thead><tbody id="c_holes">${holesRows(c.holes)}</tbody></table></div>
+      <div class="small" id="c_sum"></div>
+      <div class="spread"><div>${id ? '<button type="button" class="btn danger" id="c_del">Löschen</button>' : ''}</div>
+      <div class="row"><button type="button" class="btn" data-close>Abbrechen</button><button class="btn primary">Speichern</button></div></div>
+    </form>`, (panel) => {
+    const readHoles = () => { const out = []; $$('#c_holes tr', panel).forEach((tr, i) => { const g = (k) => $(`[data-h="${k}"]`, tr).value.trim(); out.push({ par: num(g('par'), 4), si: g('si') === '' ? null : num(g('si'), null), len: g('len'), note: g('note') }); }); return out; };
+    const readTees = () => $$('#c_tees tr', panel).map((tr) => { const o = {}; $$('[data-t]', tr).forEach((inp) => (o[inp.dataset.t] = inp.value.trim().replace(',', '.'))); return o; }).filter((t) => t.name);
+    const check = () => {
+      const hs = readHoles(); const sis = hs.map((h) => h.si).filter((v) => v != null);
+      const dup = sis.length !== new Set(sis).size;
+      $('#c_sum', panel).innerHTML = `Par gesamt <b>${sum(hs.map((h) => h.par))}</b>${hs.length === 18 ? ` (Out ${sum(hs.slice(0, 9).map((h) => h.par))} / In ${sum(hs.slice(9).map((h) => h.par))})` : ''}${dup ? ' · <span class="under">Achtung: HCP-Werte doppelt vergeben</span>' : ''}`;
+    };
+    const fill = (data) => {
+      if (data.name && !$('#c_name', panel).value) $('#c_name', panel).value = data.name;
+      if (data.location && !$('#c_loc', panel).value) $('#c_loc', panel).value = data.location;
+      if (Array.isArray(data.holes) && data.holes.length) {
+        const n = data.holes.length >= 18 ? 18 : 9; $('#c_n', panel).value = String(n);
+        $('#c_holes', panel).innerHTML = holesRows(data.holes.slice(0, n).map((h) => ({ par: h.par ?? 4, si: h.si ?? null, len: h.len ?? h.meters ?? '', note: h.note || '' })));
+      }
+      if (Array.isArray(data.tees) && data.tees.length) $('#c_tees', panel).innerHTML = data.tees.map((t) => ({ name: t.name, crM: t.crM ?? t.cr ?? '', slopeM: t.slopeM ?? t.slope ?? '', crW: t.crW ?? '', slopeW: t.slopeW ?? '' })).map(teeRow).join('');
+      check();
+    };
+    $('#c_holes', panel).addEventListener('input', check); check();
+    $('#c_n', panel).onchange = (e) => { const n = +e.target.value; const hs = readHoles(); const next = n === 9 ? hs.slice(0, 9) : [...hs, ...defaultHoles(18).slice(hs.length)]; $('#c_holes', panel).innerHTML = holesRows(next); check(); };
+    $('#c_addtee', panel).onclick = () => { const tb = $('#c_tees', panel); tb.insertAdjacentHTML('beforeend', teeRow({}, tb.children.length)); };
+    $('#c_tees', panel).onclick = (e) => { const b = e.target.closest('[data-deltee]'); if (b) b.closest('tr').remove(); };
+    if (sampleApi) {
+      const ai = $('#c_ai', panel);
+      const ask = async (text, images) => {
+        ai.hidden = false; ai.textContent = 'Claude liest die Scorecard… (das dauert einige Sekunden)';
+        try {
+          const prompt = `Du bekommst eine Golf-Scorecard${images ? ' als Bild' : ' als Text'} (z. B. aus der App Hole19 oder vom Club). Lies daraus den Platz aus.
+Antworte NUR mit JSON in genau dieser Form:
+{"name": string|null, "location": string|null, "holes": [{"par": number, "si": number|null, "len": number|null}], "tees": [{"name": string, "crM": number|null, "slopeM": number|null, "crW": number|null, "slopeW": number|null}]}
+"si" ist die Handicap-Reihenfolge (Stroke Index / HCP / Hcp). "len" ist die Länge in Metern vom ersten genannten Abschlag. Abschläge (Tees) mit Course Rating (CR) und Slope, getrennt für Herren (M) und Damen (W), wenn vorhanden. Unbekannte Werte = null. Gib 9 oder 18 Löcher in Reihenfolge an.${text ? '\n\nText:\n' + text.slice(0, 12000) : ''}`;
+          const data = await sampleApi.json(prompt, images ? { images } : {});
+          fill(data || {}); ai.textContent = 'Übernommen – bitte kurz prüfen und speichern.';
+        } catch (e) { ai.textContent = e && e.code === 'not_granted' ? 'Claude ist für diese Seite nicht erlaubt.' : e && e.code === 'image_rejected' ? 'Das Bild konnte nicht gelesen werden – bitte ein anderes wählen.' : 'Auslesen hat nicht geklappt. Bitte erneut versuchen oder manuell eintragen.'; }
+      };
+      const img = $('#c_img', panel); if (img) img.onchange = () => img.files[0] && ask('', [img.files[0]]);
+      const ta = $('#c_paste', panel);
+      $('#c_txt', panel).onclick = () => { if (ta.hidden) { ta.hidden = false; ta.focus(); $('#c_txt', panel).textContent = 'Text auslesen'; } else if (ta.value.trim()) ask(ta.value.trim()); };
+    }
+    $('#cf', panel).onsubmit = (e) => {
+      e.preventDefault();
+      const name = $('#c_name', panel).value.trim(); if (!name) return;
+      const tees = readTees(); if (!tees.length) tees.push({ name: 'Standard' });
+      const cid = id || uid();
+      save('courses', cid, { ...(id ? clone(S.courses[id]) : { createdAt: Date.now() }), name, location: $('#c_loc', panel).value.trim(), notes: $('#c_notes', panel).value.trim(), holes: readHoles(), tees });
+      closeSheet(); toast('Platz gespeichert');
+    };
+    const del = $('#c_del', panel);
+    if (del) del.onclick = () => {
+      const used = Object.values(S.tournaments).some((t) => (t.rounds || []).some((r) => r.courseId === id));
+      confirmIn(panel, del, used ? 'In Turnier verwendet – trotzdem löschen?' : 'Wirklich löschen?', () => { removeDoc('courses', id); closeSheet(); toast('Platz gelöscht'); });
+    };
+  });
+}
+
+function tournamentSheet(id) {
+  const t = id ? clone(S.tournaments[id]) : { name: '', format: 'stroke', allowance: 100, maxScore: 'none', countBest: 0, playerIds: [], hcp: {}, rounds: [] };
+  t.hcp = t.hcp || {}; t.rounds = t.rounds || []; t.playerIds = t.playerIds || [];
+  const cs = Object.values(S.courses).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  const ps = playersSorted();
+  const roundRow = (r, i) => {
+    const c = S.courses[r.courseId] || cs[0] || {};
+    return `<div class="fgrid" data-round="${esc(r.id)}" style="border-bottom:1px solid var(--line);padding-bottom:10px">
+      <label class="f">Runde ${i + 1} · Platz<select data-r="courseId">${cs.map((x) => `<option value="${esc(x.id)}" ${x.id === c.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label>
+      <label class="f">Abschlag<select data-r="tee">${(c.tees || []).map((x) => `<option ${x.name === r.tee ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label>
+      <label class="f">Datum<input type="date" data-r="date" value="${esc(r.date || '')}"></label>
+      <div class="row" style="align-self:end"><button type="button" class="btn danger" data-delround>Entfernen</button></div></div>`;
+  };
+  openSheet(id ? 'Turnier-Einstellungen' : 'Neues Turnier', `
+    <form id="tf" class="stack">
+      <label class="f">Name<input id="t_name" required value="${esc(t.name)}" placeholder="z. B. B10 Trophy ${new Date().getFullYear()}"></label>
+      <div class="fgrid">
+        <label class="f">Spielform<select id="t_fmt"><option value="stroke" ${t.format !== 'stableford' ? 'selected' : ''}>Zählspiel</option><option value="stableford" ${t.format === 'stableford' ? 'selected' : ''}>Stableford</option></select></label>
+        <label class="f">Handicap-Anteil %<input id="t_allow" inputmode="numeric" value="${esc(t.allowance ?? 100)}"></label>
+        <label class="f">Max. Score je Loch<select id="t_max"><option value="none" ${t.maxScore !== 'ndb' ? 'selected' : ''}>Kein Limit</option><option value="ndb" ${t.maxScore === 'ndb' ? 'selected' : ''}>Netto-Doppelbogey</option></select></label>
+        <label class="f">Gewertete Runden<select id="t_best"><option value="0">Alle Runden</option>${[1, 2, 3, 4, 5, 6].map((n) => `<option value="${n}" ${num(t.countBest, 0) === n ? 'selected' : ''}>Beste ${n}</option>`).join('')}</select></label>
+      </div>
+      <div class="small muted">Brutto und Netto werden immer beide gewertet. Netto: Spielvorgabe = Course Handicap (aus Index, CR, Slope, Par) × Anteil. WHS empfiehlt 95 % im Einzel.</div>
+      <div><h3>Runden & Plätze</h3></div>
+      ${cs.length ? `<div id="t_rounds" class="stack">${t.rounds.map(roundRow).join('')}</div><button type="button" class="btn" id="t_addround" style="align-self:flex-start">+ Runde hinzufügen</button>` : '<div class="note">Bitte zuerst unter <b>Plätze</b> mindestens einen Platz anlegen.</div>'}
+      <div><h3>Teilnehmer</h3><div class="small muted">Handicap-Index für dieses Turnier – leer = aktueller Index aus der Spielerliste.</div></div>
+      ${ps.length ? `<div id="t_players">${ps.map((p) => `<label class="pcheck"><input type="checkbox" data-pid="${esc(p.id)}" ${t.playerIds.includes(p.id) || (!id && true) ? 'checked' : ''}><span class="grow">${esc(p.name)} <span class="small muted">(Index ${fmtHcp(p.hcp)})</span></span><input class="n" data-hcp="${esc(p.id)}" inputmode="decimal" value="${esc(t.hcp[p.id] ?? '')}" placeholder="${esc(p.hcp ?? '')}" aria-label="Turnier-HCP ${esc(p.name)}"></label>`).join('')}</div>` : '<div class="note">Noch keine Spieler angelegt.</div>'}
+      <div class="spread"><div>${id ? '<button type="button" class="btn danger" id="t_del">Turnier löschen</button>' : ''}</div>
+      <div class="row"><button type="button" class="btn" data-close>Abbrechen</button><button class="btn primary">Speichern</button></div></div>
+    </form>`, (panel) => {
+    const rbox = $('#t_rounds', panel);
+    if (rbox) {
+      $('#t_addround', panel).onclick = () => { const r = { id: uid(), courseId: cs[0].id, tee: (cs[0].tees || [])[0]?.name || '', date: '' }; const n = rbox.children.length; rbox.insertAdjacentHTML('beforeend', roundRow(r, n)); };
+      rbox.addEventListener('change', (e) => {
+        if (e.target.dataset.r !== 'courseId') return;
+        const c = S.courses[e.target.value] || {}; const sel = e.target.closest('[data-round]').querySelector('[data-r="tee"]');
+        sel.innerHTML = (c.tees || []).map((x) => `<option>${esc(x.name)}</option>`).join('');
+      });
+      rbox.addEventListener('click', (e) => { const b = e.target.closest('[data-delround]'); if (b) confirmIn(panel, b, 'Sicher? Scores bleiben gespeichert', () => b.closest('[data-round]').remove()); });
+      if (!id && !t.rounds.length) $('#t_addround', panel).click();
+    }
+    $('#tf', panel).onsubmit = (e) => {
+      e.preventDefault();
+      const name = $('#t_name', panel).value.trim(); if (!name) return;
+      const rounds = rbox ? $$('[data-round]', rbox).map((el) => ({ id: el.dataset.round, courseId: $('[data-r="courseId"]', el).value, tee: $('[data-r="tee"]', el).value, date: $('[data-r="date"]', el).value })) : t.rounds;
+      const playerIds = $$('[data-pid]', panel).filter((x) => x.checked).map((x) => x.dataset.pid);
+      const hcp = {}; $$('[data-hcp]', panel).forEach((x) => { const v = x.value.trim(); if (v !== '') hcp[x.dataset.hcp] = num(v.replace('+', '-'), null); });
+      const tid = id || uid();
+      save('tournaments', tid, { ...t, name, format: $('#t_fmt', panel).value, allowance: num($('#t_allow', panel).value, 100), maxScore: $('#t_max', panel).value, countBest: num($('#t_best', panel).value, 0), rounds, playerIds, hcp, createdAt: t.createdAt || Date.now() });
+      closeSheet(); ui.tId = tid; ui.view = 'detail'; ui.tab = 'turniere'; saveUi(); render(); toast('Turnier gespeichert');
+    };
+    const del = $('#t_del', panel);
+    if (del) del.onclick = () => confirmIn(panel, del, 'Turnier inkl. Scores löschen?', () => {
+      Object.keys(S.scores).filter((k) => k.startsWith(id + '__')).forEach((k) => removeDoc('scores', k));
+      removeDoc('tournaments', id); closeSheet(); ui.view = 'list'; ui.tId = null; saveUi(); render(); toast('Turnier gelöscht');
+    });
+  });
+}
+
+/* Hole19 / manueller Import einer Runde */
+function parseNumbers(text, n) {
+  const t = text.trim();
+  if (/^\d+$/.test(t) && t.length === n) return t.split('').map(Number);
+  const nums = (t.match(/\d+/g) || []).map(Number).filter((x) => x >= 1 && x <= 20);
+  if (nums.length === n) return nums;
+  return null;
+}
+function importSheet() {
+  const t = S.tournaments[ui.tId]; const r = (t.rounds || []).find((x) => x.id === ui.roundId); const c = S.courses[r.courseId]; const p = S.players[ui.playerId];
+  const holes = c.holes; const n = holes.length; let result = null;
+  openSheet('Runde übernehmen', `
+    <div class="small muted">${esc(p.name)} · ${esc(c.name)} · ${n} Löcher. Hole19 hat keine offene Schnittstelle – übernimm die Runde per Screenshot der Hole19-Scorekarte, per kopiertem Text oder tippe die Schläge als Zahlenreihe ein.</div>
+    ${sampleApi && canImages ? `<label class="btn primary" style="align-self:flex-start">Hole19-Screenshot wählen<input type="file" id="i_img" accept="image/*" hidden></label>` : ''}
+    <label class="f">Zahlen oder Text aus Hole19<textarea id="i_txt" placeholder="z. B. 5 4 6 3 5 4 4 6 5  4 5 3 5 6 4 4 5 5"></textarea></label>
+    <div class="row"><button class="btn" id="i_parse">Zahlen übernehmen</button>${sampleApi ? '<button class="btn" id="i_ai">Text mit Claude auslesen</button>' : ''}</div>
+    <div id="i_msg" class="small muted"></div>
+    <div id="i_prev" class="preview"></div>
+    <div class="row" style="justify-content:flex-end"><button class="btn" data-close>Abbrechen</button><button class="btn primary" id="i_ok" disabled>In Scorekarte übernehmen</button></div>`, (panel) => {
+    const msg = $('#i_msg', panel), prev = $('#i_prev', panel), ok = $('#i_ok', panel);
+    const show = (arr, src) => {
+      result = { strokes: holes.map((_, i) => (arr[i] > 0 ? Math.round(arr[i]) : null)), src };
+      prev.innerHTML = result.strokes.map((g, i) => `<span><i>${i + 1}</i>${g ?? '–'}</span>`).join('');
+      const got = result.strokes.filter((x) => x).length;
+      msg.textContent = `${got} von ${n} Löchern erkannt, Summe ${sum(result.strokes)}. Bitte prüfen.`; ok.disabled = !got;
+    };
+    $('#i_parse', panel).onclick = () => { const arr = parseNumbers($('#i_txt', panel).value, n); if (arr) show(arr, 'manual'); else msg.textContent = `Ich brauche genau ${n} Zahlen (z. B. durch Leerzeichen getrennt)${sampleApi ? ' – oder lass Claude den Text auslesen.' : '.'}`; };
+    const ask = async (text, images) => {
+      msg.textContent = 'Claude liest die Scorekarte… (einige Sekunden)'; ok.disabled = true;
+      try {
+        const prompt = `Das ist eine Golf-Scorekarte${images ? ' (Screenshot)' : ' (Text)'} aus der App Hole19 oder einer ähnlichen App. Gesucht sind die Schläge pro Loch für den Spieler "${p.name}"${p.hole19 ? ` (in Hole19: "${p.hole19}")` : ''}. Der Platz "${c.name}" hat ${n} Löcher mit Par ${holes.map((h) => h.par).join(',')}.
+Ignoriere Zeilen für Par, HCP/Stroke Index, Meter, Putts, Punkte und Summen (Out/In/Total). Steht nur ein Spieler auf der Karte, nimm diesen.
+Antworte NUR mit JSON: {"strokes": [${n} Zahlen oder null für nicht gespielte Löcher], "player": string|null, "date": string|null}${text ? '\n\nText:\n' + text.slice(0, 12000) : ''}`;
+        const data = await sampleApi.json(prompt, images ? { images } : {});
+        if (!data || !Array.isArray(data.strokes)) throw { code: 'invalid_json' };
+        show(data.strokes.map((x) => num(x, null)), 'hole19');
+        if (data.player) msg.textContent += ` Spieler auf der Karte: ${data.player}.`;
+      } catch (e) { msg.textContent = e && e.code === 'not_granted' ? 'Claude ist für diese Seite nicht erlaubt – bitte Zahlen eintippen.' : e && e.code === 'image_rejected' ? 'Das Bild konnte nicht gelesen werden.' : 'Auslesen hat nicht geklappt – bitte erneut versuchen oder Zahlen eintippen.'; }
+    };
+    const img = $('#i_img', panel); if (img) img.onchange = () => img.files[0] && ask('', [img.files[0]]);
+    const aiB = $('#i_ai', panel); if (aiB) aiB.onclick = () => { const v = $('#i_txt', panel).value.trim(); if (v) ask(v); else msg.textContent = 'Bitte zuerst Text einfügen.'; };
+    ok.onclick = () => {
+      if (!result) return;
+      const key = skey(t.id, r.id, p.id);
+      save('scores', key, { tournamentId: t.id, roundId: r.id, playerId: p.id, strokes: result.strokes, source: result.src });
+      closeSheet(); toast('Runde übernommen');
+    };
+  });
+}
+
+function scorecardSheet(pid) {
+  const t = S.tournaments[ui.tId]; const p = S.players[pid];
+  const rounds = (t.rounds || []).filter((r) => ui.scope === 'all' || r.id === ui.scope);
+  let body = '';
+  rounds.forEach((r) => {
+    const c = S.courses[r.courseId]; if (!c) return;
+    const res = roundResult(t, r, pid); const holes = c.holes || [];
+    const idx = (t.rounds || []).indexOf(r) + 1;
+    const head = holes.map((_, i) => `<th>${i + 1}</th>`).join('');
+    body += `<div class="stack" style="gap:6px"><div class="spread"><h3>R${idx} · ${esc(c.name)}</h3><span class="small muted">${fmtDate(r.date)} · Vorgabe ${res.ph}</span></div>
+      <div class="grid"><table><thead><tr><th>Loch</th>${head}<th>Σ</th></tr></thead><tbody>
+      <tr class="par"><td>Par</td>${holes.map((h) => `<td>${h.par}</td>`).join('')}<td class="sum">${coursePar(c)}</td></tr>
+      <tr class="par"><td>Vorgabe</td>${res.recv.map((v) => `<td>${v ? (v > 0 ? '●'.repeat(v) : v) : ''}</td>`).join('')}<td class="sum">${res.ph}</td></tr>
+      <tr><td>Brutto</td>${res.g.map((g, i) => `<td>${mark(g, num(holes[i].par, 4))}</td>`).join('')}<td class="sum">${res.played ? res.gross : '–'}</td></tr>
+      <tr><td>Netto</td>${res.g.map((g, i) => `<td>${g == null ? '' : g - res.recv[i]}</td>`).join('')}<td class="sum">${res.played ? res.net : '–'}</td></tr>
+      <tr><td>Pkt br./net.</td>${res.g.map((g, i) => `<td class="small">${g == null ? '' : Math.max(0, 2 + num(holes[i].par, 4) - g) + '/' + Math.max(0, 2 + num(holes[i].par, 4) + res.recv[i] - g)}</td>`).join('')}<td class="sum">${res.played ? res.sfG + '/' + res.sfN : '–'}</td></tr>
+      </tbody></table></div></div>`;
+  });
+  openSheet(p.name, body + `<div class="small muted">Kreis = Birdie, Doppelkreis = Eagle oder besser, Quadrat = Bogey, Doppelquadrat = Doppelbogey oder schlechter.</div>
+    <div class="row" style="justify-content:flex-end"><button class="btn primary" id="sc_edit">Scores bearbeiten</button></div>`, (panel) => {
+    $('#sc_edit', panel).onclick = () => { closeSheet(); ui.playerId = pid; if (ui.scope !== 'all') ui.roundId = ui.scope; ui.view = 'card'; saveUi(); render(); scrollTo(0, 0); };
+  });
+}
+
+/* Schläge setzen (mit Verzögerung gespeichert) */
+const scoreTimers = {};
+function setStroke(i, fn) {
+  if (S.readOnly) return;
+  const t = S.tournaments[ui.tId]; const r = (t.rounds || []).find((x) => x.id === ui.roundId); const c = S.courses[r.courseId];
+  const key = skey(t.id, r.id, ui.playerId);
+  const sc = clone(S.scores[key]) || { tournamentId: t.id, roundId: r.id, playerId: ui.playerId, strokes: [] };
+  sc.strokes = Array.from({ length: c.holes.length }, (_, k) => (sc.strokes || [])[k] ?? null);
+  const v = fn(sc.strokes[i], num(c.holes[i].par, 4));
+  sc.strokes[i] = v == null || v < 1 ? null : Math.min(v, 20);
+  sc.source = 'manual'; sc.updatedAt = Date.now();
+  S.scores = { ...S.scores, [key]: sc };
+  if (S.mode === 'shared') pending.scores[key] = sc;
+  render();
+  clearTimeout(scoreTimers[key]);
+  scoreTimers[key] = setTimeout(() => save('scores', key, S.scores[key]), 600);
+}
+
+/* ============ Events ============ */
+document.addEventListener('click', (e) => {
+  const tb = e.target.closest('nav.tabs button');
+  if (tb) { ui.tab = tb.dataset.tab; if (ui.tab === 'turniere' && ui.view === 'card') ui.view = 'detail'; saveUi(); render(); scrollTo(0, 0); return; }
+  const el = e.target.closest('[data-a]'); if (!el || el.closest('#sheet')) return;
+  const a = el.dataset.a, id = el.dataset.id;
+  switch (a) {
+    case 'newT': if (S.readOnly) return toast('Nur Leserechte'); tournamentSheet(null); break;
+    case 'openT': ui.tId = id; ui.view = 'detail'; ui.tab = 'turniere'; saveUi(); render(); scrollTo(0, 0); break;
+    case 'back': ui.view = 'list'; saveUi(); render(); break;
+    case 'editT': tournamentSheet(ui.tId); break;
+    case 'lb': ui.lb = el.dataset.v; saveUi(); render(); break;
+    case 'scope': ui.scope = el.dataset.v; saveUi(); render(); break;
+    case 'enter': ui.view = 'card'; if (ui.scope !== 'all') ui.roundId = ui.scope; saveUi(); render(); scrollTo(0, 0); break;
+    case 'enterRound': ui.roundId = id; ui.view = 'card'; saveUi(); render(); scrollTo(0, 0); break;
+    case 'pickRound': ui.roundId = id; saveUi(); render(); break;
+    case 'pickPlayer': ui.playerId = id; saveUi(); render(); break;
+    case 'showCard': scorecardSheet(id); break;
+    case 'tapv': setStroke(+el.dataset.i, (g, par) => (g > 0 ? g : par)); break;
+    case 'inc': setStroke(+el.dataset.i, (g, par) => (g > 0 ? g + 1 : par)); break;
+    case 'dec': setStroke(+el.dataset.i, (g, par) => (g > 0 ? g - 1 : par - 1)); break;
+    case 'import': importSheet(); break;
+    case 'newP': if (S.readOnly) return toast('Nur Leserechte'); playerSheet(null); break;
+    case 'editP': playerSheet(id); break;
+    case 'newC': if (S.readOnly) return toast('Nur Leserechte'); courseSheet(null); break;
+    case 'editC': courseSheet(id); break;
+  }
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('#sheet').hidden) closeSheet(); });
+
+boot();
+</script>

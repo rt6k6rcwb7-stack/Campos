@@ -10,6 +10,7 @@ Web-App (PWA) zum schnellen Erfassen aller Kosten für das Haus in Campos – l�
 - **Kategorien**: Strom, Wasser, Installation, Reinigung, Hausbetreuung, Versicherung, Steuern & Gebühren, Internet/Telefon, Sonstiges – frei änderbar.
 - **Übersicht** nach Jahr/Monat mit Summen und Anteil je Kategorie, Suche, Status „offen/bezahlt“.
 - **Export als CSV** (öffnet direkt in Excel/Numbers) und **Backup/Wiederherstellen** inkl. Belegen.
+- **📥 Import aus Outlook / Microsoft 365** – Rechnungs-Mails aus dem Outlook-Ordner „Campos“ und seinen Unterordnern (z. B. „Campos/Strom“ → Kategorie Strom) mit einem Tipp erfassen; erledigte Mails wandern nach „Campos/Erledigt“.
 - **🔄 Gemeinsamer Abgleich** zwischen mehreren Handys über ein privates GitHub-Repository (inkl. Belege, „erfasst von“).
 - Funktioniert **offline**; Änderungen werden abgeglichen, sobald wieder Internet da ist.
 
@@ -23,6 +24,44 @@ Lokal testen: `python3 -m http.server` und `http://localhost:8000` öffnen.
 ## Hinweise
 - Die Texterkennung lädt beim ersten Mal ca. 10–15 MB Sprachdaten (danach zwischengespeichert).
 - Outlook-Desktop speichert Mails als `.msg` – bitte stattdessen den PDF-Anhang importieren oder die Mail als `.eml` speichern.
+
+## Import aus Outlook / Microsoft 365 einrichten (einmalig, ca. 10 Minuten)
+
+**1. Ordner in Outlook anlegen:** einen Ordner **Campos** (oberste Ebene oder unter „Posteingang“), darin am besten je Kategorie einen Unterordner:
+
+```
+Campos
+├── Strom
+├── Wasser
+├── Installation
+├── Reinigung
+├── Hausbetreuung
+└── Erledigt        ← legt die App selbst an
+```
+
+Die App liest den Hauptordner **und alle Unterordner**. Heißt ein Unterordner wie eine Kategorie (oder enthält ein Wort davon,
+z. B. „Steuern“, „Telefon“), ist die Kategorie beim Erfassen schon gesetzt – unabhängig von der Texterkennung.
+Andere Unterordner (z. B. „Belege 2025“) werden ebenfalls gelesen, nur ohne Kategorie-Vorgabe. Neue Unterordner werden sofort erkannt.
+
+Mit Outlook-Regeln sortiert sich alles von selbst (Outlook → Einstellungen → E-Mail → Regeln), z. B.:
+„Absender enthält *endesa*“ → „In Ordner verschieben: Campos/Strom“, „Absender enthält *aqualia*“ → „Campos/Wasser“.
+
+**2. App bei Microsoft registrieren** (kostenlos, mit dem Microsoft-365-Admin-Konto):
+1. https://entra.microsoft.com → **Identität → Anwendungen → App-Registrierungen** → **Neue Registrierung**
+2. Name: `Campos Kosten` · Unterstützte Kontotypen: **Nur Konten in diesem Organisationsverzeichnis**
+3. Umleitungs-URI: Plattform **Single-Page-Anwendung (SPA)** → `https://rt6k6rcwb7-stack.github.io/Campos/`
+   (genau die Adresse, die in der App unter „Umleitungs-URI“ steht) → **Registrieren**
+4. Auf der Übersichtsseite **Anwendungs-ID (Client)** und **Verzeichnis-ID (Mandant)** kopieren.
+5. **API-Berechtigungen** → *Berechtigung hinzufügen* → *Microsoft Graph* → *Delegierte Berechtigungen* →
+   `Mail.ReadWrite`, `User.Read`, `offline_access` → hinzufügen → **Administratorzustimmung für … erteilen**.
+
+**3. In der App:** Menü ⋯ → **Aus Outlook importieren** → beide IDs eintragen → **Bei Microsoft anmelden**.
+Danach zeigt das 📥-Symbol oben, wie viele Mails im Ordner warten. *Erfassen* öffnet die Rechnung (PDF-Anhang oder Mailtext)
+mit vorausgefüllten Feldern; nach dem Speichern wird die Mail nach „Erledigt“ verschoben. *Ignorieren* verschiebt ohne Eintrag.
+
+Hinweise: Die Anmeldung gilt pro Gerät; Microsoft verlangt bei Web-Apps etwa einmal täglich eine erneute Anmeldung
+(ein Tipp auf „Bei Microsoft anmelden“). Die App liest nur den gewählten Ordner und verschiebt nur Mails daraus.
+Kein Passwort wird in der App gespeichert.
 
 ## Gemeinsamer Abgleich einrichten (einmalig, ca. 5 Minuten)
 Die Daten liegen in einem **eigenen, privaten** Repository – nicht in diesem (das für GitHub Pages ggf. öffentlich ist).

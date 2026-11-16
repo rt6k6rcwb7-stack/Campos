@@ -116,7 +116,7 @@ async function openEdit(exp, files = []) {
   state.selCat = e.category || '';
   renderCatPicker();
   $('#btnDelete').hidden = !exp;
-  $('#ocrStatus').hidden = true;
+  status('');
   $('#ocrTextBox').hidden = true;
   $('#iMeta').textContent = exp && (exp.createdBy || exp.updatedBy)
     ? `Erfasst von ${exp.createdBy || '?'}${exp.updatedBy && exp.updatedBy !== exp.createdBy ? ', zuletzt geändert von ' + exp.updatedBy : ''}` : '';
@@ -253,6 +253,7 @@ async function save(ev) {
     createdBy: old ? old.createdBy : Sync.user() || undefined,
     updatedBy: Sync.user() || undefined,
     updatedAt: Date.now(),
+    mailId: old ? old.mailId : state.pendingMail || undefined,
     _sha: old ? old._sha : undefined,
     _dirty: true,
   };
@@ -262,11 +263,13 @@ async function save(ev) {
   const i = state.expenses.findIndex((x) => x.id === e.id);
   if (i > -1) state.expenses[i] = e; else state.expenses.push(e);
   toast(`Gespeichert: ${eur.format(e.amount)} · ${catById(e.category).name}`);
+  const mailId = state.pendingMail;
   closeEdit(); Sync.schedule();
+  if (mailId && !old) Mail.markDone(mailId).then(refreshMailBadge).catch((err) => toast('⚠️ Mail konnte nicht nach „Erledigt“ verschoben werden: ' + err.message, 5000));
 }
 
 function closeEdit(fromPop) {
-  state.editing = null; state.files = [];
+  state.editing = null; state.files = []; state.pendingMail = null;
   fillFilters(); render(); showView('list');
   if (!fromPop && location.hash === '#edit') history.back();
   if (state.queue.length) setTimeout(nextFromQueue, 300);
@@ -365,6 +368,7 @@ $('#menu').onclick = (e) => {
   const act = e.target.dataset.act; if (!act) return;
   $('#menu').close();
   if (act === 'sync') openSyncDlg();
+  if (act === 'mail') openMailDlg();
   if (act === 'csv') exportCsv();
   if (act === 'backup') backup();
   if (act === 'restore') $('#restoreInput').click();
@@ -481,4 +485,100 @@ setInterval(autoSync, 2 * 60 * 1000);
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(console.error);
 if (location.hash === '#edit') history.replaceState(null, '', location.pathname);
-load().then(checkShared).then(Sync.loadConfig).then(() => { setSyncIcon(); autoSync(); });
+// ---------------- Outlook-Import ----------------
+function showMailForm(show) {
+  $('#mailForm').hidden = !show; $('#mailInbox').hidden = show;
+  if (show) {
+    const c = Mail.config || {};
+    $('#mClient').value = c.clientId || ''; $('#mTenant').value = c.tenant || ''; $('#mFolder').value = c.folder || 'Campos';
+    $('#mRedirect').value = Mail.redirectUri(); $('#mailOff').hidden = !Mail.configured();
+    $('#mailFormInfo').textContent = c.account ? `Angemeldet als ${c.account}` : '';
+  }
+}
+async function openMailDlg() {
+  if (!$('#mailDlg').open) $('#mailDlg').showModal();
+  if (!Mail.signedIn()) return showMailForm(true);
+  showMailForm(false);
+  $('#mailInfo').textContent = '⏳ Mails werden geladen …'; $('#mailList').innerHTML = '';
+  try {
+    const mails = await Mail.list();
+    setMailBadge(mails.length);
+    $('#mailInfo').textContent = mails.length
+      ? `${mails.length} Mail(s) im Ordner „${Mail.config.folder}“ (${Mail.config.account})`
+      : `Keine neuen Mails im Ordner „${Mail.config.folder}“. Rechnungen in Outlook dorthin verschieben (oder per Regel automatisch).`;
+    $('#mailList').innerHTML = mails.map((m) => `<li data-id="${esc(m.id)}" data-folder="${esc(m.folder)}">
+      <div class="t">${esc(m.subject)}</div>
+      <div class="s">${m.folder ? `<span class="tag">${catForFolder(m.folder) ? catForFolder(m.folder).icon + ' ' : '📁 '}${esc(m.folder)}</span> ` : ''}${esc(m.fromName || m.from)} · ${m.date ? fmtDate(m.date) : ''}${m.hasAttachments ? ' · 📎' : ''}</div>
+      <div class="acts"><button class="primary" data-mail="take">Erfassen</button><button class="secondary" data-mail="skip">Ignorieren</button></div></li>`).join('');
+  } catch (e) { mailError(e); }
+}
+function mailError(e) {
+  console.error(e);
+  if (e.code === 'login_required') { showMailForm(true); $('#mailFormInfo').textContent = 'Bitte erneut bei Microsoft anmelden.'; }
+  else if ($('#mailDlg').open) $('#mailInfo').textContent = '⚠️ ' + e.message;
+  else toast('⚠️ Outlook: ' + e.message, 5000);
+}
+function setMailBadge(n) { const b = $('#mailBadge'); b.hidden = !n; b.textContent = n > 99 ? '99+' : n; }
+async function refreshMailBadge() {
+  $('#btnMail').hidden = !Mail.signedIn();
+  if (!Mail.signedIn() || !navigator.onLine) return;
+  try { setMailBadge(await Mail.count()); } catch (e) { if (e.code === 'login_required') { setMailBadge(0); } console.warn(e); }
+}
+// Outlook-Unterordner → Kategorie (z. B. „Strom“, „Steuern“ → „Steuern & Gebühren“, „Internet“ → „Internet / Telefon“)
+const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9äöüß]+/g, ' ').trim();
+function catForFolder(folder) {
+  const f = norm(folder); if (!f) return null;
+  return state.cats.find((c) => norm(c.name) === f || c.id === f)
+    || state.cats.find((c) => norm(c.name).split(' ').includes(f.split(' ')[0]))
+    || state.cats.find((c) => norm(c.name).startsWith(f) || f.startsWith(norm(c.name)))
+    || null;
+}
+
+async function importMail(id, folder) {
+  toast('📥 Mail wird geladen …');
+  let m;
+  try { m = await Mail.load(id); } catch (e) { return mailError(e); }
+  $('#mailDlg').close();
+  if (m.attachments.length > 1) state.queue.unshift(...m.attachments.slice(1));
+  const first = m.attachments[0] && m.attachments[0].type.startsWith('image/') ? await Parse.shrinkImage(m.attachments[0]) : m.attachments[0];
+  await openEdit(null, first ? [first] : []);
+  state.pendingMail = id;
+  const cat = catForFolder(folder);
+  if (cat) { state.selCat = cat.id; state.touched.add('cat'); renderCatPicker(); }
+  if (m.date) $('#iDate').value = m.date;
+  $('#iNote').value = m.subject.slice(0, 120);
+  analyze(first, `${m.subject}\n${m.fromName} ${m.from}\n${m.text}`, m.fromName);
+}
+$('#mailList').onclick = async (e) => {
+  const b = e.target.closest('[data-mail]'); if (!b) return;
+  const id = b.closest('li').dataset.id;
+  if (b.dataset.mail === 'take') return importMail(id, b.closest('li').dataset.folder);
+  b.disabled = true;
+  try { await Mail.markDone(id); b.closest('li').remove(); refreshMailBadge(); toast('Nach „Erledigt“ verschoben'); }
+  catch (err) { b.disabled = false; mailError(err); }
+};
+$('#btnMail').onclick = openMailDlg;
+$('#mailRefresh').onclick = openMailDlg;
+$('#mailSettingsBtn').onclick = () => showMailForm(true);
+$('#mRedirect').onclick = (e) => { e.target.select(); navigator.clipboard && navigator.clipboard.writeText(e.target.value).then(() => toast('Kopiert')); };
+$('#mailForm').onsubmit = async (ev) => {
+  ev.preventDefault();
+  const old = Mail.config || {};
+  const form = { clientId: $('#mClient').value.trim(), tenant: $('#mTenant').value.trim() || 'organizations', folder: $('#mFolder').value.trim() || 'Campos' };
+  // Gleiche App-Registrierung → Anmeldung behalten, sonst neu anmelden
+  const c = old.clientId === form.clientId && old.tenant === form.tenant ? { ...old, ...form } : form;
+  delete c.folderId; delete c.doneId;
+  await Mail.saveConfig(c);
+  if (Mail.signedIn()) return openMailDlg();
+  Mail.login();
+};
+$('#mailOff').onclick = async () => {
+  if (!confirm('Outlook-Verbindung auf diesem Gerät trennen?')) return;
+  await Mail.saveConfig(null); refreshMailBadge(); $('#mailDlg').close(); toast('Outlook getrennt');
+};
+
+load().then(checkShared).then(Sync.loadConfig).then(() => { setSyncIcon(); autoSync(); })
+  .then(Mail.loadConfig)
+  .then(() => Mail.handleRedirect().then((acc) => { if (acc) { toast('✅ Angemeldet als ' + acc); openMailDlg(); } }, (e) => { alert('Microsoft-Anmeldung: ' + e.message); }))
+  .then(refreshMailBadge);
+document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && refreshMailBadge());
